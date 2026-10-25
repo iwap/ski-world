@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ski World (v1)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="stat"><span class="label">Distans</span><span id="hud-dist">0 m</span></div>
+    <div class="stat"><span class="label">Poäng</span><span id="hud-score">0</span></div>
+    <div class="stat"><span class="label">Fart</span><span id="hud-speed">0 km/h</span></div>
+    <div class="stat"><span class="label">Hjälmar</span><span id="hud-lives">–</span></div>
+  </div>
+  <div id="air-hint" class="hidden">← → snurra · ↑ volt · ↓ grab</div>
+
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1>Ski World ⛷️ <small>v1</small></h1>
+      <p class="tag">Åk så långt du kan, undvik träd och stenar och gör tricks i luften.</p>
+      <div class="wallet">Poäng att spendera: <b id="menu-bank">0</b> · Rekord: <b id="menu-best">0</b></div>
+      <div class="buttons">
+        <button id="btn-play" class="primary">Åk! (Enter)</button>
+        <button id="btn-shop">Butik</button>
+      </div>
+      <table class="controls">
+        <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Svänga (i luften: snurra)</td></tr>
+        <tr><td><kbd>↓</kbd></td><td>Ducka för mer fart (i luften: grab)</td></tr>
+        <tr><td><kbd>↑</kbd></td><td>Bromsa (i luften: volt)</td></tr>
+        <tr><td><kbd>Space</kbd></td><td>Hoppa – eller ta fart över en hoppbacke</td></tr>
+        <tr><td><kbd>P</kbd> / <kbd>Esc</kbd></td><td>Paus</td></tr>
+      </table>
+      <p class="small">1 poäng per meter · tricks och ⭐ ger bonus · landa rakt, annars kraschar du!</p>
+      <p class="small"><a href="../index.html">← Till 3D-versionen</a></p>
+    </div>
+  </div>
+
+  <div id="shop" class="overlay hidden">
+    <div class="panel wide">
+      <h2>Butik</h2>
+      <div class="wallet">Poäng att spendera: <b id="shop-bank">0</b></div>
+      <div id="shop-items"></div>
+      <div class="buttons">
+        <button id="btn-shop-back">Tillbaka</button>
+        <button id="btn-shop-play" class="primary">Åk! (Enter)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameover" class="overlay hidden">
+    <div class="panel">
+      <h2>Krasch!</h2>
+      <p id="go-reason" class="tag"></p>
+      <dl class="results">
+        <dt>Distans</dt><dd id="go-dist">0 m</dd>
+        <dt>Trickpoäng</dt><dd id="go-tricks">0</dd>
+        <dt>Stjärnor</dt><dd id="go-stars">0</dd>
+        <dt class="total">Totalt</dt><dd id="go-total" class="total">0</dd>
+      </dl>
+      <p id="go-record" class="record hidden">🏆 Nytt rekord!</p>
+      <div class="buttons">
+        <button id="btn-again" class="primary">Åk igen (Enter)</button>
+        <button id="btn-go-shop">Butik</button>
+        <button id="btn-go-menu">Meny</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="panel">
+      <h2>Paus</h2>
+      <p class="tag">Tryck <kbd>P</kbd> eller <kbd>Esc</kbd> för att fortsätta.</p>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

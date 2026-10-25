@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ski World</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="hud" class="hidden">
+    <div class="stat"><span class="label" data-i18n="hud.dist">Distans</span><span id="hud-dist">0 m</span></div>
+    <div class="stat"><span class="label" data-i18n="hud.score">Poäng</span><span id="hud-score">0</span></div>
+    <div class="stat"><span class="label" data-i18n="hud.speed">Fart</span><span id="hud-speed">0 km/h</span></div>
+    <div class="stat"><span class="label" data-i18n="hud.slope">Lutning</span><span id="hud-slope">0°</span></div>
+    <div class="stat"><span class="label" data-i18n="hud.dir">Åker</span><span id="hud-dir">Framlänges</span></div>
+    <div class="stat"><span class="label" data-i18n="hud.lives">Hjälmar</span><span id="hud-lives">–</span></div>
+    <div class="stat hidden" id="hud-gates-wrap"><span class="label" data-i18n="hud.gates">Portar</span><span id="hud-gates">0</span></div>
+  </div>
+  <div id="chain" class="chain hidden"><div id="chain-text" class="chain-text"></div><div class="chain-track"><div id="chain-bar" class="chain-bar"></div></div></div>
+  <div id="popups"></div>
+  <div id="lift-hud" class="hidden">
+    <div class="lift-title" data-i18n="lift.title">🚡 Sittlift</div>
+    <div id="lift-result" class="lift-result"></div>
+    <div class="lift-bar"><div id="lift-progress"></div></div>
+    <div id="lift-time" class="lift-time"></div>
+    <div class="lift-hint" data-i18n="lift.hint"></div>
+    <button id="btn-lift-skip" class="primary lift-skip" data-i18n="lift.skip">⏭ Hoppa över</button>
+  </div>
+  <div id="air-hint" class="hidden" data-i18n="hint.air">← → snurra (180° = landa baklänges) · ↑ volt · ↓ grab</div>
+  <div id="balance" class="hidden">
+    <div class="track"><div id="balance-dot"></div></div>
+    <span data-i18n="hint.balance">Håll balansen med ← → · Space hoppar av</span>
+  </div>
+
+  <div id="intro" class="overlay intro hidden">
+    <div id="intro-snow" class="intro-snow" aria-hidden="true"></div>
+    <div class="intro-content">
+      <div class="intro-logo">
+        <span class="intro-skier" aria-hidden="true">⛷️</span>
+        <h1 class="intro-title">SKI WORLD</h1>
+        <span class="intro-3d">3D</span>
+      </div>
+      <p class="intro-tag" data-i18n="intro.tag">Skidor · Snowboard · Tricks · Halfpipe</p>
+      <button id="btn-start" class="intro-start" data-autofocus data-i18n="intro.start">START</button>
+      <p class="intro-hint" data-i18n="intro.hint">Tryck Enter eller klicka för att börja</p>
+    </div>
+  </div>
+
+  <div id="menu" class="overlay menu-screen">
+    <div class="menu-top">
+      <div class="menu-brand">SKI WORLD<span>3D</span></div>
+      <div class="menu-chips">
+        <div class="chip">🪙 <b id="menu-bank">0</b> <span data-i18n="menu.points">poäng</span></div>
+        <div class="chip">🏆 <b id="menu-best">0</b> <span data-i18n="menu.best">rekord</span></div>
+      </div>
+    </div>
+
+    <nav class="menu-corner">
+      <button id="btn-characters" class="corner-btn corner-wide"><span class="ico">🦸</span><span data-i18n="menu.characters">Karaktärer</span></button>
+      <button id="btn-badges" class="corner-btn corner-wide corner-gold"><span class="ico">🏅</span><span data-i18n="menu.badges">Badges</span><span id="badge-dot" class="badge-dot hidden">0</span></button>
+      <button id="btn-shop" class="corner-btn"><span class="ico">🛒</span><span data-i18n="btn.shop">Butik</span></button>
+      <button id="btn-board" class="corner-btn"><span class="ico">🏆</span><span data-i18n="btn.board">Topplista</span></button>
+      <button id="btn-settings" class="corner-btn"><span class="ico">⚙️</span><span data-i18n="menu.settings">Inställningar</span></button>
+      <button id="btn-help" class="corner-btn"><span class="ico">❓</span><span data-i18n="menu.help">Kontroller</span></button>
+    </nav>
+
+    <div class="menu-center">
+      <div class="carousel">
+        <button id="course-prev" class="car-arrow" data-i18n-aria="menu.prevCourse">◀</button>
+        <button id="course-card" class="course-card">
+          <span id="course-icon" class="course-icon"></span>
+          <span id="course-name" class="course-name"></span>
+          <span id="course-desc" class="course-desc"></span>
+        </button>
+        <button id="course-next" class="car-arrow" data-i18n-aria="menu.nextCourse">▶</button>
+      </div>
+      <div id="course-dots" class="course-dots" aria-hidden="true"></div>
+      <p id="menu-summary" class="summary"></p>
+      <button id="btn-play" class="menu-play" data-autofocus data-i18n="btn.play">Åk!</button>
+      <p class="small keys-hint menu-keys"><kbd>←</kbd><kbd>→</kbd> <span data-i18n="menu.browse">bläddra</span> · <kbd>↑</kbd><kbd>↓</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span></p>
+    </div>
+
+    <a class="v1-link" href="v1/index.html" data-i18n="menu.v1">Spela v1 (2D-versionen)</a>
+  </div>
+
+  <div id="settings" class="overlay hidden">
+    <div class="panel wide ui-panel theme-settings">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">⚙️</span><h2 data-i18n="menu.settings">Inställningar</h2></header>
+      <div class="settings">
+        <h3 class="set-group" data-i18n="set.g.player">🧑 Åkare</h3>
+        <label class="row" for="name-input"><span class="row-label" data-i18n="menu.name">Namn</span><input id="name-input" maxlength="16" autocomplete="off"></label>
+        <div class="row"><span class="row-label" data-i18n="set.rider">Åkare</span>
+          <div class="seg" role="group" data-i18n-aria="menu.chooseRider">
+            <button id="rider-ski" class="seg-btn" data-i18n="rider.ski">⛷️ Skidor</button>
+            <button id="rider-board" class="seg-btn" data-i18n="rider.board">🏂 Snowboard</button>
+          </div>
+        </div>
+        <div class="row"><span class="row-label" data-i18n="set.helmet">Hjälm</span><div id="helmet-seg" class="seg" role="group" data-i18n-aria="set.helmet"></div></div>
+        <div class="row" id="poles-row"><span class="row-label" data-i18n="style.poles">Stavar</span><div id="poles-seg" class="seg" role="group" data-i18n-aria="style.poles"></div></div>
+        <h3 class="set-group" data-i18n="set.g.game">🎮 Spelet</h3>
+        <div class="row"><span class="row-label" data-i18n="set.sensitivity">Svängkänslighet</span>
+          <div class="controls-inline"><input type="range" id="sens-input" min="50" max="200" step="10" data-i18n-aria="set.sensitivity"><span id="sens-value" class="sens-value">100 %</span></div>
+        </div>
+        <div class="row"><span class="row-label" data-i18n="set.difficulty">Svårighetsgrad</span><div id="diff-seg" class="seg" role="group" data-i18n-aria="menu.chooseDiff"></div></div>
+        <div class="row"><span class="row-label" data-i18n="set.lift">Sittlift efter åket</span><div id="lift-seg" class="seg" role="group" data-i18n-aria="set.lift"></div></div>
+        <div class="row"><span class="row-label" data-i18n="menu.chooseTime">Tid på dygnet</span><div id="time-seg" class="seg" role="group" data-i18n-aria="menu.chooseTime"></div></div>
+        <h3 class="set-group" data-i18n="set.g.audio">🔊 Ljud &amp; språk</h3>
+        <div class="row"><span class="row-label" data-i18n="audio.music">Musik</span>
+          <div class="controls-inline"><button id="btn-music">🎵 Musik: På</button><div id="song-seg" class="seg" role="group" data-i18n-aria="menu.chooseSong"></div></div>
+        </div>
+        <div class="row"><span class="row-label" data-i18n="set.sound">Ljudeffekter</span><button id="btn-sfx">🔊 Ljud: På</button></div>
+        <div class="row"><span class="row-label" data-i18n="menu.chooseLang">Språk</span><div id="lang-seg" class="seg" role="group" data-i18n-aria="menu.chooseLang"></div></div>
+      </div>
+      <div class="buttons ui-foot"><button id="btn-settings-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="characters" class="overlay hidden char-screen">
+    <div class="panel ui-panel theme-chars char-panel">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🦸</span><h2 data-i18n="menu.characters">Karaktärer</h2></header>
+      <div class="char-info">
+        <div id="char-title" class="char-title"></div>
+        <p id="char-desc" class="char-desc"></p>
+        <span id="char-pick" class="char-pick"></span>
+      </div>
+      <div id="char-grid" class="char-grid" role="group" data-i18n-aria="menu.characters"></div>
+      <div class="buttons ui-foot"><button id="btn-chars-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="badges" class="overlay hidden">
+    <div class="panel wide ui-panel theme-badges">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🏅</span><h2 data-i18n="menu.badges">Badges</h2>
+        <div class="coin-chip"><span class="coin-label" id="badges-count">0 / 0</span> <span aria-hidden="true">🪙</span> <b id="badges-bank">0</b></div></header>
+      <div id="badge-list"></div>
+      <div class="buttons ui-foot">
+        <button id="btn-badges-back" data-i18n="btn.back">Tillbaka</button>
+        <button id="btn-claim-all" class="primary">Hämta alla</button>
+      </div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="help" class="overlay hidden">
+    <div class="panel wide ui-panel theme-help">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🎮</span><h2 data-i18n="menu.help">Kontroller</h2></header>
+      <table class="controls">
+        <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td data-i18n="ctrl.steer">Svänga (i luften: snurra)</td></tr>
+        <tr><td><kbd>↓</kbd></td><td data-i18n="ctrl.brake">Bromsa (i luften: bakåtvolt)</td></tr>
+        <tr><td><kbd>↑</kbd></td><td data-i18n="ctrl.frontflip">Framåtvolt (i luften)</td></tr>
+        <tr><td><kbd>T</kbd></td><td data-i18n="ctrl.tuck">Ducka för mer fart</td></tr>
+        <tr><td><kbd>F</kbd><kbd>G</kbd><kbd>R</kbd><kbd>V</kbd><kbd>Q</kbd></td><td data-i18n="ctrl.grab">Grabs i luften: Indy, Mute, Japan, Chinese, Tail</td></tr>
+        <tr><td><kbd>X</kbd></td><td data-i18n="ctrl.switch">Vänd – åk baklänges / framlänges</td></tr>
+        <tr><td><kbd>Space</kbd></td><td data-i18n="ctrl.jump">Hoppa – eller ta fart över en hoppbacke</td></tr>
+        <tr><td data-i18n="ctrl.grindLabel">Grind</td><td data-i18n-html="ctrl.grind"></td></tr>
+        <tr><td>✋</td><td data-i18n="ctrl.highfive">Kör nära förbi en snögubbe för en high five</td></tr>
+        <tr><td><kbd>C</kbd></td><td data-i18n="ctrl.camera">Byt kameravy (första/tredje person)</td></tr>
+        <tr><td><kbd>P</kbd> / <kbd>Esc</kbd></td><td data-i18n="ctrl.pause">Paus</td></tr>
+        <tr><td><kbd>M</kbd></td><td data-i18n="ctrl.music">Musik av/på</td></tr>
+      </table>
+      <p class="small" data-i18n-html="menu.rules"></p>
+      <div class="buttons ui-foot"><button id="btn-help-back" class="primary" data-autofocus data-i18n="btn.back">Tillbaka</button></div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="shop" class="overlay hidden">
+    <div class="panel wide ui-panel theme-shop">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🛒</span><h2 data-i18n="btn.shop">Butik</h2>
+        <div class="coin-chip"><span class="coin-label" data-i18n="menu.toSpend">Poäng att spendera:</span> <span aria-hidden="true">🪙</span> <b id="shop-bank">0</b></div></header>
+      <h3 data-i18n="shop.gear">Utrustning</h3>
+      <div id="shop-items"></div>
+      <h3 data-i18n="shop.style">Stil</h3>
+      <div id="shop-styles"></div>
+      <div class="buttons ui-foot">
+        <button id="btn-shop-back" data-i18n="btn.back">Tillbaka</button>
+        <button id="btn-shop-play" class="primary" data-i18n="btn.play">Åk!</button>
+      </div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="gameover" class="overlay hidden go-screen">
+    <div id="confetti" class="confetti" aria-hidden="true"></div>
+    <div id="go-panel" class="panel go-panel">
+      <div id="go-emoji" class="go-emoji" aria-hidden="true">💥</div>
+      <h2 id="go-title" class="go-title">Krasch!</h2>
+      <p id="go-reason" class="go-reason"></p>
+      <p id="go-quip" class="go-quip"></p>
+      <div id="go-rating" class="go-rating" aria-hidden="true"></div>
+      <div class="go-tiles">
+        <div class="tile t-blue"><span class="tile-ico">📏</span><b id="go-dist">0 m</b><span data-i18n="hud.dist">Distans</span></div>
+        <div class="tile t-orange"><span class="tile-ico">🤸</span><b id="go-tricks">0</b><span data-i18n="go.tricks">Trickpoäng</span></div>
+        <div class="tile t-yellow"><span class="tile-ico">⭐</span><b id="go-stars">0</b><span data-i18n="go.stars">Stjärnor</span></div>
+        <div class="tile t-green"><span class="tile-ico">💨</span><b id="go-speed">0</b><span data-i18n="go.topSpeed">Toppfart</span></div>
+        <div class="tile t-purple"><span class="tile-ico">🚀</span><b id="go-air">0 m</b><span data-i18n="go.bigAir">Högsta luft</span></div>
+        <div class="tile t-red gates-row hidden"><span class="tile-ico">🚩</span><b id="go-gates">0</b><span data-i18n="hud.gates">Portar</span></div>
+      </div>
+      <div class="go-total"><span data-i18n="go.total">Totalt</span> <b id="go-total">0</b></div>
+      <p id="go-record" class="record hidden" data-i18n="go.record">🏆 Nytt rekord!</p>
+      <p id="go-rank" class="rank hidden"></p>
+      <div class="buttons">
+        <button id="btn-again" class="primary big-btn" data-autofocus data-i18n="btn.again">Åk igen</button>
+        <button id="btn-go-shop" data-i18n="btn.shop">Butik</button>
+        <button id="btn-go-board" data-i18n="btn.board">Topplista</button>
+        <button id="btn-go-menu" data-i18n="btn.menu">Meny</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="board" class="overlay hidden">
+    <div class="panel wide ui-panel theme-board">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🏆</span><h2 data-i18n="btn.board">Topplista</h2></header>
+      <div class="setup lb-tabs"><label class="select-field"><span data-i18n="menu.course">Bana</span> <select id="lb-select" data-i18n-aria="menu.chooseCourse"></select></label></div>
+      <table class="leaderboard">
+        <thead><tr><th>#</th><th data-i18n="board.name">Namn</th><th></th><th data-i18n="board.level">Nivå</th><th data-i18n="hud.dist">Distans</th><th data-i18n="hud.score">Poäng</th><th data-i18n="board.when">Datum & tid</th></tr></thead>
+        <tbody id="lb-body"></tbody>
+      </table>
+      <p id="lb-empty" class="small" data-i18n="board.empty">Inga åk än – ut i backen!</p>
+      <p class="small" data-i18n="board.local">Topplistan sparas i den här webbläsaren.</p>
+      <div class="buttons ui-foot"><button id="btn-lb-back" data-autofocus data-i18n="btn.back">Tillbaka</button></div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="panel ui-panel theme-pause">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">⏸️</span><h2 data-i18n="pause.title">Paus</h2></header>
+      <p class="tag" data-i18n-html="pause.hint"></p>
+      <div class="buttons">
+        <button id="btn-resume" class="primary" data-autofocus data-i18n="btn.resume">Fortsätt</button>
+        <button id="btn-quit" data-i18n="btn.quit">Avsluta åket</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="i18n.js"></script>
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
