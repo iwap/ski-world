@@ -422,13 +422,22 @@ const currentGrab = () => GRABS.find((g) => keys.has(g.key)) || null; // grab i 
 const isGrab = () => !!currentGrab();
 const wasPressed = (...codes) => codes.some((c) => pressed.has(c));
 
+// Pekskärm (mobil/surfplatta): knappar på skärmen istället för tangentbord. ?touch=1 tvingar fram det.
+const TOUCH = window.matchMedia('(hover: none) and (pointer: coarse)').matches || /[?&]touch=1/.test(location.search);
+if (TOUCH) {
+  document.body.classList.add('touch');
+  $('air-hint').dataset.i18n = 'hint.airTouch';
+  document.querySelector('.intro-hint').dataset.i18n = 'intro.hintTouch';
+}
+
 // ---------- Renderer, scen & ljus ----------
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+// Mobiler orkar mindre: lägre upplösning och enklare skuggor
+renderer.setPixelRatio(Math.min(TOUCH ? 1.5 : 2, window.devicePixelRatio || 1));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = TOUCH ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 document.body.prepend(renderer.domElement);
@@ -461,7 +470,7 @@ const hemi = new THREE.HemisphereLight('#dbe9ff', '#f2f5fa', 1.3);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight('#fff3e0', 2.4);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(TOUCH ? 1024 : 2048, TOUCH ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 160 });
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
@@ -5127,6 +5136,7 @@ function setText(id, text) {
 }
 
 function updateHud() {
+  updateTouchUi();
   const p = player;
   if (state === 'menu' || state === 'shop' || state === 'lift' || state === 'intro') return;
   setText('hud-dist', `${fmt(Math.min(p.d, runLength()))} / ${fmt(runLength())} m`);
@@ -5143,6 +5153,70 @@ function updateHud() {
   $('balance').classList.toggle('hidden', !(p.grind && playing));
   if (p.grind) $('balance-dot').style.left = `${50 + clamp(p.balance, -1, 1) * 50}%`;
 }
+
+// ---------- Pekknappar ----------
+
+// Knapparna låtsas vara tangenter, så att spellogiken är densamma som med tangentbord
+function virtualDown(code) {
+  if (!keys.has(code)) pressed.add(code);
+  keys.add(code);
+}
+
+// Grab-knappen: riktningen du håller samtidigt väljer grab (ingen = Indy)
+function touchGrabKey() {
+  if (keys.has('ArrowLeft')) return 'KeyG';
+  if (keys.has('ArrowRight')) return 'KeyR';
+  if (keys.has('ArrowUp')) return 'KeyV';
+  if (keys.has('ArrowDown')) return 'KeyQ';
+  return 'KeyF';
+}
+
+const touchHeld = new Map(); // knapp -> tangentkod som hålls nere
+
+function releaseTouch(btn) {
+  const code = touchHeld.get(btn);
+  if (!code) return;
+  touchHeld.delete(btn);
+  keys.delete(code);
+  btn.classList.remove('on');
+}
+
+for (const btn of document.querySelectorAll('#touch-ui [data-key]')) {
+  btn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    Sound.init();
+    btn.setPointerCapture(e.pointerId);
+    const code = btn.dataset.key === 'grab' ? touchGrabKey() : btn.dataset.key;
+    touchHeld.set(btn, code);
+    btn.classList.add('on');
+    virtualDown(code);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) btn.addEventListener(ev, () => releaseTouch(btn));
+}
+$('tc-pause').addEventListener('click', () => togglePause());
+$('tc-cam').addEventListener('click', () => toggleCamera());
+// Inga långtryck-menyer eller dubbeltrycks-zoom på spelytan
+document.addEventListener('contextmenu', (e) => { if (TOUCH) e.preventDefault(); });
+
+let touchUiShown = false;
+function updateTouchUi() {
+  const show = TOUCH && state === 'playing';
+  if (show === touchUiShown) return;
+  touchUiShown = show;
+  $('touch-ui').classList.toggle('hidden', !show);
+  if (!show) for (const btn of [...touchHeld.keys()]) releaseTouch(btn);
+}
+
+// Mobil: helskärm och liggande läge när man trycker på START (fungerar på Android, iPhone ignorerar det)
+function enterMobileFullscreen() {
+  if (!TOUCH || document.fullscreenElement) return;
+  const el = document.documentElement;
+  if (!el.requestFullscreen) return;
+  el.requestFullscreen({ navigationUI: 'hide' })
+    .then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'))
+    .catch(() => {});
+}
+$('btn-start').addEventListener('click', enterMobileFullscreen);
 
 // ---------- Huvudloop ----------
 

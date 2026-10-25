@@ -13,6 +13,9 @@ const LANGS = {
 
 const STRINGS = {
   sv: {
+    'touch.tuck': 'Ducka', 'touch.switch': 'Switch', 'touch.front': 'Volt', 'touch.grab': 'Grab', 'touch.back': 'Broms', 'touch.jump': 'HOPP', 'touch.rotate': 'Vrid telefonen till liggande läge',
+    'touch.h.steer': 'Svänga – i luften: snurra', 'touch.h.jump': 'Hoppa', 'touch.h.front': 'Framåtvolt i luften', 'touch.h.back': 'Bromsa – i luften: bakåtvolt', 'touch.h.grab': 'Grab. Håll ◀ ▶ ▲ ▼ samtidigt för Mute, Japan, Chinese och Tail', 'touch.h.tuck': 'Ducka för mer fart', 'touch.h.switch': 'Vänd – åk baklänges / framlänges', 'touch.h.top': 'Byt kameravy · paus',
+    'hint.airTouch': '◀ ▶ snurra · ▲ ▼ volt · 🤙 grab', 'intro.hintTouch': 'Tryck på START för att börja',
     'menu.badges': 'Badges',
     'badge.earned': 'Badge upplåst!',
     'badge.claim': 'Hämta',
@@ -131,6 +134,9 @@ const STRINGS = {
     'time.day': '☀️ Dag', 'time.night': '🌙 Kväll', 'menu.chooseTime': 'Tid på dygnet',
   },
   en: {
+    'touch.tuck': 'Tuck', 'touch.switch': 'Switch', 'touch.front': 'Flip', 'touch.grab': 'Grab', 'touch.back': 'Brake', 'touch.jump': 'JUMP', 'touch.rotate': 'Turn your phone sideways',
+    'touch.h.steer': 'Steer – in the air: spin', 'touch.h.jump': 'Jump', 'touch.h.front': 'Frontflip in the air', 'touch.h.back': 'Brake – in the air: backflip', 'touch.h.grab': 'Grab. Hold ◀ ▶ ▲ ▼ at the same time for Mute, Japan, Chinese and Tail', 'touch.h.tuck': 'Tuck for more speed', 'touch.h.switch': 'Turn – ride backwards / forwards', 'touch.h.top': 'Change camera · pause',
+    'hint.airTouch': '◀ ▶ spin · ▲ ▼ flip · 🤙 grab', 'intro.hintTouch': 'Tap START to begin',
     'menu.badges': 'Badges',
     'badge.earned': 'Badge unlocked!',
     'badge.claim': 'Claim',
@@ -249,6 +255,9 @@ const STRINGS = {
     'time.day': '☀️ Day', 'time.night': '🌙 Evening', 'menu.chooseTime': 'Time of day',
   },
   es: {
+    'touch.tuck': 'Agacharse', 'touch.switch': 'Switch', 'touch.front': 'Mortal', 'touch.grab': 'Grab', 'touch.back': 'Frenar', 'touch.jump': 'SALTO', 'touch.rotate': 'Gira el móvil en horizontal',
+    'touch.h.steer': 'Girar – en el aire: rotar', 'touch.h.jump': 'Saltar', 'touch.h.front': 'Mortal adelante en el aire', 'touch.h.back': 'Frenar – en el aire: mortal atrás', 'touch.h.grab': 'Grab. Mantén ◀ ▶ ▲ ▼ a la vez para Mute, Japan, Chinese y Tail', 'touch.h.tuck': 'Agáchate para ir más rápido', 'touch.h.switch': 'Girar – esquiar hacia atrás / adelante', 'touch.h.top': 'Cambiar cámara · pausa',
+    'hint.airTouch': '◀ ▶ girar · ▲ ▼ mortal · 🤙 grab', 'intro.hintTouch': 'Toca START para empezar',
     'menu.badges': 'Insignias',
     'badge.earned': '¡Insignia desbloqueada!',
     'badge.claim': 'Cobrar',
@@ -367,6 +376,9 @@ const STRINGS = {
     'time.day': '☀️ Día', 'time.night': '🌙 Noche', 'menu.chooseTime': 'Hora del día',
   },
   nl: {
+    'touch.tuck': 'Hurken', 'touch.switch': 'Switch', 'touch.front': 'Salto', 'touch.grab': 'Grab', 'touch.back': 'Rem', 'touch.jump': 'SPRING', 'touch.rotate': 'Draai je telefoon horizontaal',
+    'touch.h.steer': 'Sturen – in de lucht: draaien', 'touch.h.jump': 'Springen', 'touch.h.front': 'Voorwaartse salto in de lucht', 'touch.h.back': 'Remmen – in de lucht: achterwaartse salto', 'touch.h.grab': 'Grab. Houd ◀ ▶ ▲ ▼ tegelijk vast voor Mute, Japan, Chinese en Tail', 'touch.h.tuck': 'Hurk voor meer snelheid', 'touch.h.switch': 'Omdraaien – achteruit / vooruit', 'touch.h.top': 'Andere camera · pauze',
+    'hint.airTouch': '◀ ▶ draaien · ▲ ▼ salto · 🤙 grab', 'intro.hintTouch': 'Tik op START om te beginnen',
     'menu.badges': 'Badges',
     'badge.earned': 'Badge ontgrendeld!',
     'badge.claim': 'Ophalen',
