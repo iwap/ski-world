@@ -1,4 +1,9 @@
--- Kör det här en gång i Supabase → SQL Editor. Skapar tabellen för den globala topplistan.
+-- Ski World: databas för global topplista, unika namn och online-race.
+-- Kör hela filen i Supabase → SQL Editor (den går att köra flera gånger).
+-- Spelarna loggas in anonymt (Authentication → Sign In / Providers → Anonymous sign-ins: på,
+-- e-postregistrering: av). Bara inloggade spelare får skriva, och bara i sitt eget namn.
+
+-- ---------- Resultat ----------
 create table if not exists public.scores (
   id bigint generated always as identity primary key,
   player_id text not null check (char_length(player_id) between 8 and 64),
@@ -11,22 +16,44 @@ create table if not exists public.scores (
   created_at timestamptz not null default now()
 );
 create index if not exists scores_course_score on public.scores (course, score desc);
+create index if not exists scores_player_time on public.scores (player_id, created_at desc);
 
--- Alla får läsa och lägga till resultat, ingen får ändra eller ta bort
 alter table public.scores enable row level security;
 drop policy if exists "read scores" on public.scores;
-create policy "read scores" on public.scores for select to anon using (true);
+create policy "read scores" on public.scores for select to anon, authenticated using (true);
 drop policy if exists "add scores" on public.scores;
-create policy "add scores" on public.scores for insert to anon with check (true);
+drop policy if exists "add own scores" on public.scores;
+create policy "add own scores" on public.scores for insert to authenticated
+  with check (player_id = (select auth.uid())::text);
+-- Ingen får ändra eller ta bort resultat
+revoke insert, update, delete on public.scores from anon;
+revoke update, delete on public.scores from authenticated;
+
+-- Spamskydd: högst ett resultat var 5:e sekund och 300 per dygn per spelare
+create or replace function public.scores_rate_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from scores where player_id = new.player_id and created_at > now() - interval '5 seconds') then
+    raise exception 'too many scores' using errcode = 'P0001';
+  end if;
+  if (select count(*) from scores where player_id = new.player_id and created_at > now() - interval '1 day') >= 300 then
+    raise exception 'daily limit reached' using errcode = 'P0001';
+  end if;
+  new.created_at := now();
+  return new;
+end $$;
+drop trigger if exists scores_rate_limit on public.scores;
+create trigger scores_rate_limit before insert on public.scores
+  for each row execute function public.scores_rate_limit();
 
 -- Varje spelares bästa åk per bana (det är den som visas i topplistan)
 create or replace view public.best_scores with (security_invoker = true) as
 select distinct on (player_id, course) player_id, name, score, dist, course, difficulty, rider, created_at
 from public.scores
 order by player_id, course, score desc, created_at;
-grant select on public.best_scores to anon;
+grant select on public.best_scores to anon, authenticated;
 
--- Unika spelarnamn: claim_name reserverar ett namn (minst 3 tecken, skiftlägesokänsligt unikt)
+-- ---------- Unika spelarnamn ----------
 create table if not exists public.players (
   player_id text primary key check (char_length(player_id) between 8 and 64),
   name text not null check (char_length(name) between 3 and 16),
@@ -35,18 +62,34 @@ create table if not exists public.players (
 create unique index if not exists players_name_key on public.players (lower(name));
 alter table public.players enable row level security;
 drop policy if exists "read players" on public.players;
-create policy "read players" on public.players for select to anon using (true);
+create policy "read players" on public.players for select to anon, authenticated using (true);
+revoke insert, update, delete on public.players from anon, authenticated;
 
-create or replace function public.claim_name(p_id text, p_name text) returns boolean
+-- claim_name reserverar ett namn åt den inloggade spelaren (minst 3 tecken, skiftlägesokänsligt unikt)
+drop function if exists public.claim_name(text, text);
+create or replace function public.claim_name(p_name text) returns boolean
 language plpgsql security definer set search_path = public as $$
-declare n text := trim(p_name);
+declare
+  n text := trim(p_name);
+  uid text := (select auth.uid())::text;
 begin
-  if char_length(n) < 3 or char_length(n) > 16 then return false; end if;
-  if exists (select 1 from players where lower(name) = lower(n) and player_id <> p_id) then return false; end if;
-  insert into players (player_id, name) values (p_id, n)
+  if uid is null or char_length(n) < 3 or char_length(n) > 16 then return false; end if;
+  if exists (select 1 from players where player_id = uid and updated_at > now() - interval '3 seconds') then return false; end if;
+  if exists (select 1 from players where lower(name) = lower(n) and player_id <> uid) then return false; end if;
+  insert into players (player_id, name) values (uid, n)
     on conflict (player_id) do update set name = excluded.name, updated_at = now();
   return true;
 exception when unique_violation then
   return false;
 end $$;
-grant execute on function public.claim_name(text, text) to anon;
+revoke all on function public.claim_name(text) from public, anon;
+grant execute on function public.claim_name(text) to authenticated;
+
+-- ---------- Online-party och race (Realtime) ----------
+-- Spelets kanaler är privata: bara inloggade spelare, och bara kanaler som börjar med "ski-"
+drop policy if exists "ski realtime read" on realtime.messages;
+create policy "ski realtime read" on realtime.messages for select to authenticated
+  using ((select realtime.topic()) like 'ski-%');
+drop policy if exists "ski realtime write" on realtime.messages;
+create policy "ski realtime write" on realtime.messages for insert to authenticated
+  with check ((select realtime.topic()) like 'ski-%');

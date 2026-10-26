@@ -3222,11 +3222,41 @@ let lastRankCourse = null;
 // Global topplista (Supabase REST). Utan config.js-nycklar finns bara den lokala listan.
 const Online = (() => {
   const cfg = window.SKI_ONLINE || {};
-  const on = !!(cfg.url && cfg.key);
+  const on = !!(cfg.url && cfg.key && window.supabase);
   const api = on ? `${cfg.url.replace(/\/$/, '')}/rest/v1` : '';
-  const headers = { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json' };
+  // En gemensam klient. Varje spelare loggas in anonymt (osynligt) så att servern vet vem som skriver –
+  // man kan bara spara resultat och namn åt sig själv.
+  const client = on ? window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'skiworld-auth' } }) : null;
+  let signingIn = null;
+  function auth() {
+    if (!on) return Promise.resolve(null);
+    signingIn = signingIn || (async () => {
+      const { data } = await client.auth.getSession();
+      let session = data.session;
+      if (!session) {
+        const res = await client.auth.signInAnonymously();
+        if (res.error) throw res.error;
+        session = res.data.session;
+      }
+      if (save.playerId !== session.user.id) {
+        save.playerId = session.user.id;
+        persist();
+      }
+      return session;
+    })().catch(() => {
+      signingIn = null; // försök igen nästa gång (t.ex. offline)
+      return null;
+    });
+    return signingIn;
+  }
+  async function headers(extra = {}) {
+    await auth();
+    const { data } = on ? await client.auth.getSession() : { data: {} };
+    const token = data.session ? data.session.access_token : cfg.key;
+    return { apikey: cfg.key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...extra };
+  }
   const get = async (path, extra = {}) => {
-    const res = await fetch(`${api}/${path}`, { headers: { ...headers, ...extra } });
+    const res = await fetch(`${api}/${path}`, { headers: await headers(extra) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res;
   };
@@ -3243,9 +3273,12 @@ const Online = (() => {
     flushing = flushing || (async () => {
       try {
         // Ett åk i taget: ett ogiltigt åk (400/409/422) slängs, annars (offline, 401, 429, 5xx) försöker vi igen senare
+        if (!(await auth())) return false;
         let ok = true;
         while (save.pendingScores.length) {
-          const res = await fetch(`${api}/scores`, { method: 'POST', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(save.pendingScores[0]) });
+          // Åket sparas alltid på den inloggade spelaren
+          const body = { ...save.pendingScores[0], player_id: save.playerId };
+          const res = await fetch(`${api}/scores`, { method: 'POST', headers: await headers({ Prefer: 'return=minimal' }), body: JSON.stringify(body) });
           if (!res.ok && ![400, 409, 422].includes(res.status)) {
             ok = false;
             break;
@@ -3271,12 +3304,13 @@ const Online = (() => {
   // Reservera ett namn: true = mitt nu, false = upptaget, null = gick inte att nå servern
   async function claimName(name) {
     try {
-      const res = await fetch(`${api}/rpc/claim_name`, { method: 'POST', headers, body: JSON.stringify({ p_id: save.playerId, p_name: name }) });
+      if (!(await auth())) return null;
+      const res = await fetch(`${api}/rpc/claim_name`, { method: 'POST', headers: await headers(), body: JSON.stringify({ p_name: name }) });
       if (!res.ok) return null;
       return (await res.json()) === true;
     } catch { return null; }
   }
-  return { on, submit, flush, top, mine, rank, claimName };
+  return { on, client, auth, submit, flush, top, mine, rank, claimName };
 })();
 Online.flush();
 
@@ -6067,7 +6101,7 @@ function renderTutorial() {
 // ---------- Online-party: se vilka som är online och bjud in till race ----------
 // Bygger på Supabase Realtime (presence + broadcast) med samma nycklar som topplistan.
 const party = {
-  on: !!(Online.on && window.supabase),
+  on: Online.on,
   client: null, lobby: null, ready: false,
   players: [],     // andra spelare online
   pending: null,   // inbjudan jag har skickat { to, raceId, until }
@@ -6083,12 +6117,19 @@ function partyMe() {
   return { id: save.playerId, name: playerName(), icon: ch.icon, status, course: save.course };
 }
 
-function partyConnect() {
+async function partyConnect() {
   if (!party.on || party.client) return;
+  party.client = Online.client;
+  // Kanalerna är privata: logga in (anonymt) först
+  const session = await Online.auth();
+  if (!session) {
+    party.client = null; // försök igen när Online-menyn öppnas
+    renderParty();
+    return;
+  }
   try {
-    const cfg = window.SKI_ONLINE;
-    party.client = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: false } });
-    party.lobby = party.client.channel('ski-lobby', { config: { presence: { key: save.playerId }, broadcast: { self: false } } });
+    party.client.realtime.setAuth(session.access_token);
+    party.lobby = party.client.channel('ski-lobby', { config: { private: true, presence: { key: save.playerId }, broadcast: { self: false } } });
     party.lobby
       .on('presence', { event: 'sync' }, partySync)
       .on('broadcast', { event: 'invite' }, ({ payload }) => onInvite(payload))
@@ -6232,7 +6273,7 @@ function onReply(r) {
 function beginRace({ id, opp, seed, course: courseId, difficulty: diffId }) {
   party.pending = null;
   race = { id, opp, seed, course: courseId, difficulty: diffId, startAt: performance.now() + RACE_COUNTDOWN, oppPos: null, oppDone: null, myDone: null, startedAt: 0, sent: 0, prev: { course: save.course, difficulty: save.difficulty } };
-  race.ch = party.client.channel(`ski-race-${id}`, { config: { broadcast: { self: false } } });
+  race.ch = party.client.channel(`ski-race-${id}`, { config: { private: true, broadcast: { self: false } } });
   race.ch
     .on('broadcast', { event: 'pos' }, ({ payload }) => { if (race && race.id === id) race.oppPos = payload; })
     .on('broadcast', { event: 'done' }, ({ payload }) => {
