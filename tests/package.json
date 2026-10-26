@@ -1,0 +1,14 @@
+{
+  "name": "ski-world-tests",
+  "private": true,
+  "description": "Tester för Ski World. Spelet självt behöver inga paket – bara testerna.",
+  "type": "module",
+  "scripts": {
+    "test": "node check-load-order.mjs && node run.mjs",
+    "check": "node check-load-order.mjs"
+  },
+  "devDependencies": {
+    "eslint-scope": "8.2.0",
+    "espree": "10.3.0"
+  }
+}

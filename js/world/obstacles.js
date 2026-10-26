@@ -1,0 +1,233 @@
+'use strict';
+// Hinder och hopp i backen: modeller, typer, landningar och Big Air-kanter.
+
+// ---------- Hindermodeller (InstancedMesh = ett draw call per typ) ----------
+
+const objMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+const starMat = new THREE.MeshStandardMaterial({ color: '#ffc400', emissive: '#ff8f00', emissiveIntensity: 0.7, metalness: 0.5, roughness: 0.3 });
+const MODELS = {};
+
+function addModel(key, geo, mat = objMat, cap = 800) {
+  const mesh = new THREE.InstancedMesh(geo, mat, cap);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.setColorAt(0, new THREE.Color(1, 1, 1));
+  mesh.count = 0;
+  scene.add(mesh);
+  MODELS[key] = { mesh, cap };
+}
+
+[11, 23, 37].forEach((seed, i) => addModel(`tree${i}`, makeSpruce(seed)));
+[5, 17].forEach((seed, i) => addModel(`pine${i}`, makePine(seed)));
+[3, 8].forEach((seed, i) => addModel(`rock${i}`, makeRock(seed)));
+addModel('stump', makeStump());
+addModel('snowman', makeSnowman());
+// Tre storlekar på hopp: liten kicker, mellan och stor. vz = utgångsfart uppåt (höjd ≈ vz² / 40)
+const RAMPS = [
+  { name: 'Liten kicker', w: 1.6, l: 1.8, h: 0.6, vz: 6,    weight: 50 },
+  { name: 'Hoppbacke',    w: 2.1, l: 2.5, h: 1.1, vz: 7.8,  weight: 35 },
+  { name: 'Stor kicker',  w: 2.6, l: 3.4, h: 1.7, vz: 9.6,  weight: 15, landing: 0.5 },
+  { name: 'Big Air',      w: 3.6, l: 6.0, h: 3.2, vz: 11.2, weight: 7,  landing: 1, terrain: true },
+  // Jättehopp på Big Air-banan: går över hela backens bredd så att det inte går att åka förbi
+  // Jättehopp på Big Air-banan i tre storlekar: går över hela den smala backen, med ett gap före landningen
+  { name: 'Mega S', w: BIGAIR_NET + 2, l: 8,  h: 3.5, vz: 11, weight: 0, landing: 1, terrain: true, mega: true },
+  { name: 'Mega M', w: BIGAIR_NET + 2, l: 12, h: 6,   vz: 14, weight: 0, landing: 1, terrain: true, mega: true },
+  { name: 'Mega L', w: BIGAIR_NET + 2, l: 16, h: 9,   vz: 17, weight: 0, landing: 1, terrain: true, mega: true },
+];
+RAMPS.forEach((r, i) => { if (!r.mega) addModel(`ramp${i}`, makeRamp(r.w, r.l, r.h)); });
+addModel('star', new THREE.OctahedronGeometry(0.4).scale(1, 1.4, 0.5), starMat);
+
+const OBSTACLES = [
+  { type: 'tree',    weight: 44, r: 1.0,  h: 3.6, crash: 'crash.tree' },
+  { type: 'pine',    weight: 10, r: 0.5,  h: 99,  crash: 'crash.pine' },
+  { type: 'rock',    weight: 13, r: 0.9,  h: 0.8, crash: 'crash.rock' },
+  { type: 'stump',   weight: 6,  r: 0.45, h: 0.6, crash: 'crash.stump' },
+  { type: 'snowman', weight: 4,  r: 0.6,  h: 2.0, crash: 'crash.snowman' },
+  { type: 'ramp',    weight: 9,  r: 0,    h: 0 },
+  { type: 'star',    weight: 8,  r: 0.7,  h: 0 },
+  // Grind-objekt: ligger längs med backen, hoppa upp på dem
+  { type: 'rail',    weight: 4,  r: 0.25, h: 0.7,  crash: 'crash.rail', ptsPerM: 18 },
+  { type: 'log',     weight: 5,  r: 0.45, h: 0.78, crash: 'crash.log', ptsPerM: 12 },
+  { type: 'box',     weight: 0,  r: 0.45, h: 0.6,  crash: 'crash.box', ptsPerM: 14 },
+  // Parkhinder i snön (ingen krock – de är en del av backen)
+  { type: 'spine',   weight: 0,  r: 0,    h: 0 },
+  { type: 'rollers', weight: 0,  r: 0,    h: 0 },
+  // Sådant som finns i riktiga backar
+  { type: 'cannon',  weight: 0,  r: 0.35, h: 99, crash: 'crash.cannon' },
+  { type: 'sign',    weight: 0,  r: 0.2,  h: 99, crash: 'crash.sign' },
+  { type: 'deco',    weight: 0,  r: 0,    h: 0 },
+];
+const isLinear = (o) => o.type === 'rail' || o.type === 'log' || o.type === 'box';
+
+// Väljer ett hinder enligt den valda banans vikter
+function pickObstacle() {
+  const w = course.weights;
+  let r = Math.random() * OBSTACLES.reduce((sum, o) => sum + (w[o.type] || 0), 0);
+  for (const o of OBSTACLES) {
+    r -= w[o.type] || 0;
+    if (r < 0) return o;
+  }
+  return OBSTACLES[0];
+}
+
+// Räknar ut var spelaren landar i normal fart och lägger en landningsslänt där
+// Under ett race byggs banan av grundvärden så att båda spelarna får exakt samma bana
+function worldStats() {
+  if (!worldRng) return stats();
+  return { cruise: Math.min(100, 50 * difficulty.speed) * KMH, jumpPower: 1 };
+}
+
+function makeLanding(o) {
+  const r = o.ramp;
+  const s = worldStats();
+  const v = s.cruise;
+  const vz = (r.vz + v * 0.06) * s.jumpPower;
+  const peak = r.h + vz * vz / (2 * GRAVITY);
+  const H = r.mega ? r.h * 0.7 : r.terrain ? r.h * 0.9 : Math.min(4, peak * 0.45);
+  // Tid från kanten (höjd h) tills man är nere på bordets höjd igen
+  const tLand = (vz + Math.sqrt(Math.max(0, vz * vz + 2 * GRAVITY * (r.h - H)))) / GRAVITY;
+  const dist = v * tLand;
+  const lip = o.d + r.l;
+  const f = {
+    x: o.x, half: r.w + 1.5, H, sideW: 4,
+    d0: lip + 1, d1: lip + 7,
+    d2: lip + Math.max(9, dist * 0.7), // kanten
+    d3: lip + dist * 1.3 + 6,          // slutet av landningen
+  };
+  // Jättehoppet: gap (ett djupt hål) mellan kanten och landningen, sedan en lång landning.
+  // För lite fart = man hamnar i hålet.
+  if (r.mega) {
+    // Uppmätt i spelet: luftfärden tar ungefär 0,105 s per m/s uppåtfart, oavsett fart framåt.
+    // Gapet är ungefär 45 % av hopplängden i normal fart och djupt som halva kickern – för långsamt = ner i hålet.
+    const tAir = 0.105 * vz;
+    Object.assign(f, { mega: true, H: r.h * 0.7, gap: Math.max(2.5, r.h * 0.55), d2: lip + Math.max(9, v * tAir * 0.45), d3: lip + v * tAir * 1.5 + 30 });
+  }
+  if (r.terrain) {
+    // Big Air: kickern är en del av samma snöbyggnad, med flacka sidor att åka upp på
+    Object.assign(f, { kicker: true, hK: r.h, kHalf: r.w, vz: r.vz, lip, d0: o.d - r.l, d1: lip, half: r.w + 2.5, sideW: 7 });
+  }
+  features.push(f);
+  o.zone.len = Math.max(o.zone.len, f.d3 - o.zone.d + 6);
+  return f;
+}
+
+const lipMarkerMat = new THREE.MeshLambertMaterial({ color: '#ff6d00' });
+const lipMarkerGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.6, 6).translate(0, 0.8, 0);
+
+// Orange käppar som markerar Big Air-kickerns kant
+function buildLipMarkers(o, lip = o.d + o.ramp.l, halfW = o.ramp.w + 0.3) {
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) {
+    const m = new THREE.Mesh(lipMarkerGeo, lipMarkerMat);
+    const x = o.x + s * halfW;
+    m.position.set(x, groundY(x, lip - 0.3), -(lip - 0.3));
+    m.castShadow = true;
+    g.add(m);
+  }
+  scene.add(g);
+  return g;
+}
+
+// Jättehoppets kant: orange linje över hela bredden + flaggor vid sidorna
+function buildLipLine(o) {
+  const lip = o.d + o.ramp.l;
+  const g = new THREE.Group();
+  const line = new THREE.Mesh(new THREE.BoxGeometry(o.ramp.w * 2, 0.06, 0.35), lipMarkerMat);
+  line.position.set(o.x, groundY(o.x, lip - 0.25) + 0.02, -(lip - 0.25));
+  g.add(line);
+  for (let x = -o.ramp.w + 4; x <= o.ramp.w - 4; x += 6) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.5, 8), lipMarkerMat);
+    m.position.set(x, groundY(x, lip - 0.6) + 0.25, -(lip - 0.6));
+    g.add(m);
+  }
+  scene.add(g);
+  return g;
+}
+
+function makeObject(t, x, d, opts = {}) {
+  const o = { ...t, x, d, dEnd: d, s: 1, rot: Math.random() * Math.PI * 2, tint: null, taken: false, model: t.type };
+  const k = 0.82 + Math.random() * 0.25;
+  switch (t.type) {
+    case 'tree':
+      o.s = 0.75 + Math.random() * 0.55;
+      o.model = `tree${Math.floor(Math.random() * 3)}`;
+      o.tint = new THREE.Color(k, k + 0.04, k);
+      break;
+    case 'pine':
+      o.s = 0.85 + Math.random() * 0.35;
+      o.model = `pine${Math.floor(Math.random() * 2)}`;
+      o.tint = new THREE.Color(k, k, k);
+      break;
+    case 'rock':
+      o.s = 0.6 + Math.random() * 0.8;
+      o.model = `rock${Math.floor(Math.random() * 2)}`;
+      break;
+    case 'stump':
+      o.s = 0.9 + Math.random() * 0.3;
+      break;
+    case 'snowman':
+      o.rot = (Math.random() - 0.5) * 0.6;
+      break;
+    case 'spine': {
+      const H = 1.8;
+      o.feature = { spine: true, x, H, hK: H, half: 3, kHalf: 3, sideW: 5, d0: d, lip: d + 6, d1: d + 6, d3: d + 13, vz: 7.5 };
+      features.push(o.feature);
+      o.dEnd = o.feature.d3;
+      o.zone = { x, d: d + 6, ux: 0, ud: 1, len: 30, half: 4 };
+      o.mesh = buildLipMarkers(o, d + 6, 3.4);
+      break;
+    }
+    case 'rollers': {
+      const spacing = 9;
+      o.feature = { rollers: true, x, H: 1.1, half: 5, sideW: 4, d0: d, d3: d + 4 * spacing, spacing };
+      features.push(o.feature);
+      if (course.moguls) calmZones.push({ x, d0: d - 4, d1: o.feature.d3 + 2, half: 8 });
+      o.dEnd = o.feature.d3;
+      o.zone = { x, d, ux: 0, ud: 1, len: 4 * spacing + 6, half: 6 };
+      break;
+    }
+    case 'ramp': {
+      const sizeW = course.rampSizes || RAMPS.map((rp) => rp.weight);
+      let r = Math.random() * sizeW.reduce((sum, w) => sum + w, 0);
+      o.size = sizeW.findIndex((w) => (r -= w) < 0);
+      if (course.moguls && o.size === 3) o.size = 2; // ingen Big Air mitt i puckelpisten
+      o.ramp = RAMPS[o.size];
+      o.model = `ramp${o.size}`;
+      o.rot = 0;
+      // Fri landningszon: så långt hoppet kan bära i hög fart, plus marginal
+      const airtime = 2 * (o.ramp.vz + 28 * 0.06) / GRAVITY;
+      o.zone = { x: o.x, d: o.d + o.ramp.l, ux: 0, ud: 1, len: airtime * 26 + 10, half: 3.5 + (o.size === 3 ? 1.5 : 0) };
+      if (Math.random() < (o.ramp.landing || 0)) o.feature = makeLanding(o);
+      if (o.ramp.mega) o.mesh = buildLipLine(o);
+      else if (o.ramp.terrain) o.mesh = buildLipMarkers(o);
+      if (o.ramp.terrain) o.warn = true;
+      if (course.moguls) {
+        const end = o.feature ? o.feature.d3 : o.d + o.ramp.l + airtime * 14;
+        calmZones.push({ x: o.x, d0: o.d - 8, d1: end + 4, half: o.ramp.w + 3 });
+      }
+      break;
+    }
+    case 'rail':
+    case 'log':
+    case 'box': {
+      o.len = t.type === 'rail' ? 15 + Math.random() * 8 : t.type === 'box' ? 9 + Math.random() * 5 : 11 + Math.random() * 6;
+      const vs = LINEAR_VARIANTS[t.type];
+      o.variant = opts.variant || vs[Math.floor(Math.random() * vs.length)];
+      if (o.variant === 'up') o.len *= 0.75;
+      if (opts.len) o.len = opts.len;
+      o.ra = opts.ra ?? (Math.random() - 0.5) * 0.3;
+      o.ux = Math.sin(o.ra);
+      o.ud = Math.cos(o.ra);
+      buildPath(o);
+      o.mesh = t.type === 'rail' ? buildRail(o) : t.type === 'box' ? buildBox(o) : buildLog(o);
+      scene.add(o.mesh);
+      // Fri zon efter räcket där inga träd får stå (i räckets riktning vid slutet)
+      const end = pointAt(o, 1);
+      o.zone = { x: o.x1, d: o.d1, ux: Math.sin(end.a), ud: Math.cos(end.a), len: 14, half: 3 };
+      break;
+    }
+  }
+  return o;
+}
