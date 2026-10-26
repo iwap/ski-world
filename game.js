@@ -17,6 +17,7 @@ const GRAVITY = 20;                  // lite tyngre än verkligheten för snabba
 const ROW = 3;                       // hinder genereras i rader om 3 m
 const NET_X = 50;                    // avspärrningsnäten står vid x = ±50 m
 const BAND = 2 * (NET_X - 3);        // bredd på området där hinder genereras
+const BIGAIR_NET = 14;               // Big Air-banan är en smal korridor
 const VIEW_AHEAD = 240;
 const LIFT_TIME = 15;                // sekunder upp med liften
 const LIFT_X = -(NET_X + 14);        // liften går utanför skogen på vänster sida
@@ -43,16 +44,28 @@ const COURSES = {
     weights: { tree: 0, pine: 0, rock: 0, stump: 0, snowman: 0, ramp: 0, star: 1, rail: 0, log: 0, box: 0 },
   },
   slalom: {
-    slope: 0.3, waves: [[0.08, 0.012, 0]], bumps: 0.5, moguls: 0, density: 0.3, slalom: true,
-    weights: { tree: 30, pine: 10, rock: 4, stump: 0, snowman: 3, ramp: 0, star: 10, rail: 0, log: 0, box: 0 },
+    // Smal korridor med nät på båda sidor, breda portar och glest med träd
+    slope: 0.28, waves: [[0.06, 0.012, 0]], bumps: 0.3, moguls: 0, density: 0.15, slalom: true, netX: 13,
+    weights: { tree: 8, pine: 3, rock: 0, stump: 0, snowman: 2, ramp: 0, star: 12, rail: 0, log: 0, box: 0 },
+  },
+  // Big Air: nästan bara stora hopp (rampSizes = vikter för liten/mellan/stor/Big Air)
+  // Big Air: ett jättehopp i taget över hela bredden, med riktig landning – inget annat i vägen
+  bigair: {
+    slope: 0.3, waves: [], bumps: 0, moguls: 0, density: 0.6, mega: true, netX: BIGAIR_NET, rampSizes: [0, 0, 0, 0, 1, 1, 1],
+    weights: { tree: 30, pine: 12, rock: 0, stump: 16, snowman: 0, ramp: 0, star: 4, rail: 0, log: 0, box: 0 },
   },
 };
+// Banorna låses upp med pengar (classic är gratis). Dyrare bana = mer pengar per åk och trick.
+const COURSE_PRICE = { classic: 0, park: 5000, moguls: 10000, pipe: 15000, slalom: 20000, bigair: 25000 };
+const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom: 2, bigair: 2.25 };
 const DIFFICULTIES = {
-  easy:   { length: 1000, density: 0.6,  speed: 0.9,  balance: 0.6, points: 0.75 },
-  normal: { length: 1500, density: 1,    speed: 1,    balance: 1,   points: 1 },
-  hard:   { length: 2000, density: 1.45, speed: 1.12, balance: 1.4, points: 1.5 },
+  // finishBonus = extra pengar för att ta sig hela vägen i mål
+  easy:   { length: 1000, density: 0.6,  speed: 0.9,  balance: 0.6, points: 0.75, finishBonus: 0 },
+  normal: { length: 1500, density: 1,    speed: 1,    balance: 1,   points: 1,    finishBonus: 750 },
+  hard:   { length: 2000, density: 1.45, speed: 1.12, balance: 1.4, points: 1.5,  finishBonus: 2000 },
 };
 let course = COURSES.classic;
+const netX = () => course.netX || NET_X; // avspärrningsnätens läge för den valda banan
 let difficulty = DIFFICULTIES.normal;
 // Backens längd beror på svårighetsgraden – vid målet väntar sittliften
 const runLength = () => difficulty.length;
@@ -120,6 +133,17 @@ function featureY(x, d) {
       // Rollers: mjuka vågor efter varandra
       top = f.H * Math.sin(Math.PI * (d - f.d0) / f.spacing) ** 2;
       h = Math.max(h, top * side);
+      continue;
+    }
+    if (f.mega) {
+      // Jättehopp: kicker → djupt gap → vägg upp till landningens knuckle → lång landning
+      const kSide = 1 - smoothstep(f.kHalf, f.kHalf + f.sideW, lat);
+      if (d < f.lip) top = f.hK * Math.pow((d - f.d0) / (f.lip - f.d0), 1.8);
+      else if (d < f.d2 - 3) top = f.hK + (-f.gap - f.hK) * smoothstep(f.lip + 1.5, f.lip + 5, d); // kort platå vid kanten så att lyftet hinner registreras
+      else if (d < f.d2) top = -f.gap + (f.H + f.gap) * smoothstep(f.d2 - 3, f.d2, d);  // d2 ≥ lip + 9, så väggen börjar först när gapet är nere
+      else top = f.H * (1 - smoothstep(f.d2, f.d3, d));
+      const v = top * kSide;
+      if (Math.abs(v) > Math.abs(h)) h = v;
       continue;
     }
     if (f.kicker && d < f.lip) {
@@ -244,16 +268,34 @@ const STYLES = [
 
 // Karaktärer: färger som ersätter standarden och extra delar på huvud/kropp.
 // Utan egen jackfärg används jackan från stilbutiken.
+// Karaktärer: tre startgubbar, resten får man ur boxen. ab = förmåga (andel extra, t.ex. 0.1 = +10 %).
 const CHARACTERS = [
-  { id: 'classic', icon: '⛷️' },
-  { id: 'girl',   icon: '👧', jacket: '#ec407a', skin: '#f3c9a5', hair: '#8d5a2b', parts: ['hairLong', 'face'], noHelmet: true, noGoggles: true },
-  { id: 'boy',    icon: '👦', jacket: '#1e88e5', skin: '#c98e66', hair: '#2b1d14', parts: ['hairShort', 'face'], noHelmet: true, noGoggles: true },
-  { id: 'ninja',  icon: '🥷', jacket: '#1c1c1c', pants: '#161616', accent: '#b71c1c', skin: '#1c1c1c', pack: '#262626', parts: ['ninja'], noHelmet: true, noGoggles: true },
-  { id: 'santa',  icon: '🎅', jacket: '#c62828', pants: '#b71c1c', accent: '#ffffff', pack: '#8d6e4f', boot: '#1b1b1b', parts: ['santa', 'face'], noHelmet: true, noGoggles: true },
-  { id: 'robot',  icon: '🤖', jacket: '#cfd8dc', pants: '#90a4ae', accent: '#37474f', skin: '#90a4ae', pack: '#546e7a', metal: true, parts: ['robot'], noHelmet: true, noGoggles: true },
-  { id: 'alien',  icon: '👽', jacket: '#6a1b9a', pants: '#4a148c', accent: '#76ff03', skin: '#7cb342', parts: ['alien'], noHelmet: true, noGoggles: true },
-  { id: 'pirate', icon: '🏴‍☠️', jacket: '#6d1b1b', pants: '#d7ccc8', accent: '#c9a227', skin: '#d9a27a', boot: '#3e2723', pack: '#5d4037', parts: ['pirate', 'face'], noHelmet: true, noGoggles: true },
+  { id: 'classic', icon: '⛷️', rarity: 'starter', ab: { coins: 0.05 } },
+  { id: 'girl',   icon: '👧', rarity: 'starter', ab: { spin: 0.1 }, jacket: '#ec407a', skin: '#f3c9a5', hair: '#8d5a2b', parts: ['hairLong', 'face'], noHelmet: true, noGoggles: true },
+  { id: 'boy',    icon: '👦', rarity: 'starter', ab: { flip: 0.1 }, jacket: '#1e88e5', skin: '#c98e66', hair: '#2b1d14', parts: ['hairShort', 'face'], noHelmet: true, noGoggles: true },
+  { id: 'pirate', icon: '🏴‍☠️', rarity: 'common', ab: { stars: 0.5 }, jacket: '#6d1b1b', pants: '#d7ccc8', accent: '#c9a227', skin: '#d9a27a', boot: '#3e2723', pack: '#5d4037', parts: ['pirate', 'face'], noHelmet: true, noGoggles: true },
+  { id: 'penguin', icon: '🐧', rarity: 'common', ab: { land: 0.25 }, jacket: '#1b1b1b', pants: '#1b1b1b', accent: '#263238', skin: '#1b1b1b', pack: '#263238', boot: '#ff9800', parts: ['penguin'], noHelmet: true, noGoggles: true },
+  { id: 'viking', icon: '🪓', rarity: 'common', ab: { speed: 0.05 }, jacket: '#5d4037', pants: '#3e2723', accent: '#a1887f', skin: '#f0c39b', pack: '#795548', boot: '#4e342e', hair: '#e65100', parts: ['viking', 'face'], noHelmet: true, noGoggles: true },
+  { id: 'santa',  icon: '🎅', rarity: 'uncommon', ab: { coins: 0.15 }, jacket: '#c62828', pants: '#b71c1c', accent: '#ffffff', pack: '#8d6e4f', boot: '#1b1b1b', parts: ['santa', 'face'], noHelmet: true, noGoggles: true },
+  { id: 'ninja',  icon: '🥷', rarity: 'uncommon', ab: { spin: 0.15, flip: 0.15 }, jacket: '#1c1c1c', pants: '#161616', accent: '#b71c1c', skin: '#1c1c1c', pack: '#262626', parts: ['ninja'], noHelmet: true, noGoggles: true },
+  { id: 'zombie', icon: '🧟', rarity: 'uncommon', ab: { lives: 1 }, jacket: '#5f6f52', pants: '#4e342e', accent: '#3e4a35', skin: '#9fb38a', pack: '#4a4a3a', boot: '#3e2723', parts: ['zombie'], noHelmet: true, noGoggles: true },
+  { id: 'robot',  icon: '🤖', rarity: 'rare', ab: { grind: 0.4 }, jacket: '#cfd8dc', pants: '#90a4ae', accent: '#37474f', skin: '#90a4ae', pack: '#546e7a', metal: true, parts: ['robot'], noHelmet: true, noGoggles: true },
+  { id: 'astronaut', icon: '🧑‍🚀', rarity: 'rare', ab: { air: 0.2 }, jacket: '#eceff1', pants: '#e0e0e0', accent: '#90a4ae', skin: '#f0c39b', pack: '#cfd8dc', boot: '#eceff1', hair: '#4e342e', parts: ['astro', 'face', 'hairShort'], noHelmet: true, noGoggles: true },
+  { id: 'alien',  icon: '👽', rarity: 'epic', ab: { spin: 0.25, flip: 0.25, land: 0.3 }, jacket: '#6a1b9a', pants: '#4a148c', accent: '#76ff03', skin: '#7cb342', parts: ['alien'], noHelmet: true, noGoggles: true },
+  { id: 'hero',   icon: '🦸', rarity: 'epic', ab: { speed: 0.12, air: 0.1 }, jacket: '#1565c0', pants: '#1565c0', accent: '#c62828', skin: '#f0c39b', pack: '#c62828', boot: '#c62828', hair: '#212121', parts: ['hero', 'face', 'hairShort'], noHelmet: true, noGoggles: true },
+  { id: 'goldking', icon: '👑', rarity: 'legendary', ab: { speed: 0.2, tricks: 0.5, spin: 0.3, flip: 0.3, land: 0.5 }, jacket: '#ffd54f', pants: '#f9a825', accent: '#6a1b9a', skin: '#f0c39b', pack: '#6a1b9a', boot: '#ffd54f', hair: '#6d4c41', gold: true, parts: ['crown', 'face', 'kingcape'], noHelmet: true, noGoggles: true },
 ];
+// Boxen: chans per raritet (summa 100) och hur mycket man får tillbaka för en dubblett
+const RARITIES = {
+  starter:   { chance: 0,  refund: 0,     color: '#90a4ae' },
+  common:    { chance: 45, refund: 1500,  color: '#78909c' },
+  uncommon:  { chance: 30, refund: 2500,  color: '#43a047' },
+  rare:      { chance: 17, refund: 4000,  color: '#1e88e5' },
+  epic:      { chance: 7,  refund: 6000,  color: '#8e24aa' },
+  legendary: { chance: 1,  refund: 10000, color: '#ffb300' },
+};
+const BOX_PRICE = 10000;
+const ABILITY_KEYS = ['speed', 'spin', 'flip', 'land', 'air', 'tricks', 'coins', 'stars', 'grind', 'lives'];
 // Grabs: varsin tangent. Poäng per sekund man håller i.
 const GRABS = [
   { id: 'indy',    key: 'KeyF', name: 'Indy grab',    pts: 120 },
@@ -280,7 +322,7 @@ const BADGES = [
   { id: 'bigair',     cat: 'tricks', icon: '🚀', reward: 1000 },
   { id: 'highfive',   cat: 'tricks', icon: '✋', reward: 300 },
   { id: 'nearmiss',   cat: 'tricks', icon: '😮', reward: 300 },
-  ...['classic', 'park', 'moguls', 'pipe', 'slalom'].map((c) => ({ id: `course-${c}`, cat: 'courses', course: c, reward: 1000 })),
+  ...['classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair'].map((c) => ({ id: `course-${c}`, cat: 'courses', course: c, reward: 1000 })),
   { id: 'slalomclean', cat: 'courses', icon: '🎿', reward: 2000 },
   { id: 'diff-easy',   cat: 'diff', diff: 'easy',   icon: '🟢', reward: 500 },
   { id: 'diff-normal', cat: 'diff', diff: 'normal', icon: '🔵', reward: 1000 },
@@ -298,7 +340,7 @@ function loadSave() {
     bank: 0, best: 0, bestDist: 0, upgrades: {},
     owned: STYLES.filter((st) => st.cost === 0).map((st) => st.id),
     style: { jacket: 'jacket-orange', helmet: 'helmet-blue', gear: 'gear-blue', poles: 'poles-none' },
-    rider: 'ski', character: 'classic', badges: {}, badgeProg: {}, course: 'classic', difficulty: 'normal', night: false, fpv: false, lift: true, helmetOn: true, turnSens: 1, lang: detectLang(), name: '', leaderboard: [], audio: { music: true, sfx: true, song: 0 },
+    rider: 'ski', character: 'classic', badges: {}, badgeProg: {}, courses: ['classic'], course: 'classic', difficulty: 'normal', night: false, fpv: false, lift: true, helmetOn: true, turnSens: 1, lang: detectLang(), name: '', leaderboard: [], audio: { music: true, sfx: true, song: 0 },
   };
   try {
     const data = JSON.parse(localStorage.getItem(SAVE_KEY)) || {};
@@ -307,8 +349,25 @@ function loadSave() {
   for (const u of UPGRADES) fresh.upgrades[u.id] = fresh.upgrades[u.id] || 0;
   // Okända värden (t.ex. från en äldre version) ersätts med standard
   if (!COURSES[fresh.course]) fresh.course = 'classic';
+  // Anonymt spelar-id för den globala topplistan (så att man ser sina egna rader)
+  if (typeof fresh.playerId !== 'string' || fresh.playerId.length < 8) {
+    fresh.playerId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
+  }
+  if (!Array.isArray(fresh.pendingScores)) fresh.pendingScores = [];
+  if (!Array.isArray(fresh.courses)) {
+    // Äldre sparning: banor man redan har åkt behåller man
+    fresh.courses = ['classic', ...new Set(fresh.leaderboard.map((e) => e.course).filter((c) => c && c !== 'classic'))];
+  }
+  fresh.courses = fresh.courses.filter((c) => COURSES[c]);
+  if (!fresh.courses.includes('classic')) fresh.courses.unshift('classic');
+  if (!fresh.courses.includes(fresh.course)) fresh.course = 'classic';
   if (!DIFFICULTIES[fresh.difficulty]) fresh.difficulty = 'normal';
   if (!CHARACTERS.some((c) => c.id === fresh.character)) fresh.character = 'classic';
+  // Ägda karaktärer: startgubbarna + det man fått ur boxen (äldre sparningar behåller den man har valt)
+  if (!Array.isArray(fresh.chars)) fresh.chars = [fresh.character];
+  for (const c of CHARACTERS) if (c.rarity === 'starter' && !fresh.chars.includes(c.id)) fresh.chars.push(c.id);
+  fresh.chars = fresh.chars.filter((id) => CHARACTERS.some((c) => c.id === id));
+  if (!fresh.chars.includes(fresh.character)) fresh.character = 'classic';
   if (!fresh.badges || typeof fresh.badges !== 'object') fresh.badges = {};
   if (!fresh.badgeProg || typeof fresh.badgeProg !== 'object') fresh.badgeProg = {};
   if (!LANGS[fresh.lang]) fresh.lang = detectLang();
@@ -335,16 +394,19 @@ const isBoard = () => save.rider === 'board';
 const KMH = 1 / 3.6;
 const MAX_SPEED = 100 * KMH;
 
+// Vald karaktärs förmåga, t.ex. { speed: 0.1 }
+const ability = (key) => ((CHARACTERS.find((c) => c.id === save.character) || CHARACTERS[0]).ab || {})[key] || 0;
+
 function stats() {
   const u = save.upgrades;
   return {
-    cruise: Math.min(100, (50 + u.skis * 10) * difficulty.speed) * KMH, // fart rakt ner – också starthastigheten
-    pull: 6 + u.wax * 1.5,                          // hur hårt backen drar (acceleration)
+    cruise: Math.min(100, (50 + u.skis * 10) * difficulty.speed) * KMH * (1 + ability('speed')), // fart rakt ner – också starthastigheten
+    pull: (6 + u.wax * 1.5) * (1 + ability('speed')), // hur hårt backen drar (acceleration)
     turnRate: (1.7 + u.boots * 0.2) * (isBoard() ? 0.92 : 1) * clamp(save.turnSens || 1, 0.5, 2), // svängkänslighet från inställningarna
-    jumpPower: 1 + u.binding * 0.025,
-    spinRate: 7.5 + u.binding * 0.7,
-    flipTime: 0.8 - u.binding * 0.04,
-    lives: save.helmetOn === false ? 0 : u.helmet, // utan hjälm: en krasch och åket är slut
+    jumpPower: (1 + u.binding * 0.025) * (1 + ability('air')),
+    spinRate: (5.6 + u.binding * 0.5) * (1 + ability('spin')), // 360 på drygt en sekund
+    flipTime: (0.8 - u.binding * 0.04) / (1 + ability('flip')),
+    lives: (save.helmetOn === false ? 0 : u.helmet) + ability('lives'), // utan hjälm: en krasch och åket är slut
   };
 }
 
@@ -402,14 +464,20 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (GAME_KEYS.includes(e.code)) e.preventDefault();
+  // Under tutorialen styr boten – Esc/Enter hoppar över
+  if (tutorial) {
+    if (!e.repeat && (e.code === 'Escape' || e.code === 'Enter')) endTutorial();
+    return;
+  }
   if (e.code === 'KeyC' && !e.repeat && (state === 'playing' || state === 'lift')) toggleCamera();
   if (state === 'lift' && !e.repeat && (e.code === 'Enter' || e.code === 'Escape')) return endLift(); // hoppa över liften
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
   if (!e.repeat && (e.code === 'Escape' || e.code === 'KeyP')) togglePause();
 });
-window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('keyup', (e) => { if (!tutorial) keys.delete(e.code); });
 window.addEventListener('blur', () => {
+  if (tutorial) return;
   keys.clear();
   if (state === 'playing') togglePause();
 });
@@ -703,9 +771,14 @@ const RAMPS = [
   { name: 'Liten kicker', w: 1.6, l: 1.8, h: 0.6, vz: 6,    weight: 50 },
   { name: 'Hoppbacke',    w: 2.1, l: 2.5, h: 1.1, vz: 7.8,  weight: 35 },
   { name: 'Stor kicker',  w: 2.6, l: 3.4, h: 1.7, vz: 9.6,  weight: 15, landing: 0.5 },
-  { name: 'Big Air',      w: 3.6, l: 6.0, h: 3.2, vz: 12.8, weight: 7,  landing: 1, terrain: true },
+  { name: 'Big Air',      w: 3.6, l: 6.0, h: 3.2, vz: 11.2, weight: 7,  landing: 1, terrain: true },
+  // Jättehopp på Big Air-banan: går över hela backens bredd så att det inte går att åka förbi
+  // Jättehopp på Big Air-banan i tre storlekar: går över hela den smala backen, med ett gap före landningen
+  { name: 'Mega S', w: BIGAIR_NET + 2, l: 8,  h: 3.5, vz: 11, weight: 0, landing: 1, terrain: true, mega: true },
+  { name: 'Mega M', w: BIGAIR_NET + 2, l: 12, h: 6,   vz: 14, weight: 0, landing: 1, terrain: true, mega: true },
+  { name: 'Mega L', w: BIGAIR_NET + 2, l: 16, h: 9,   vz: 17, weight: 0, landing: 1, terrain: true, mega: true },
 ];
-RAMPS.forEach((r, i) => addModel(`ramp${i}`, makeRamp(r.w, r.l, r.h)));
+RAMPS.forEach((r, i) => { if (!r.mega) addModel(`ramp${i}`, makeRamp(r.w, r.l, r.h)); });
 addModel('star', new THREE.OctahedronGeometry(0.4).scale(1, 1.4, 0.5), starMat);
 
 const OBSTACLES = [
@@ -742,13 +815,19 @@ function pickObstacle() {
 }
 
 // Räknar ut var spelaren landar i normal fart och lägger en landningsslänt där
+// Under ett race byggs banan av grundvärden så att båda spelarna får exakt samma bana
+function worldStats() {
+  if (!worldRng) return stats();
+  return { cruise: Math.min(100, 50 * difficulty.speed) * KMH, jumpPower: 1 };
+}
+
 function makeLanding(o) {
   const r = o.ramp;
-  const s = stats();
+  const s = worldStats();
   const v = s.cruise;
   const vz = (r.vz + v * 0.06) * s.jumpPower;
   const peak = r.h + vz * vz / (2 * GRAVITY);
-  const H = r.terrain ? r.h * 0.9 : Math.min(4, peak * 0.45);
+  const H = r.mega ? r.h * 0.7 : r.terrain ? r.h * 0.9 : Math.min(4, peak * 0.45);
   // Tid från kanten (höjd h) tills man är nere på bordets höjd igen
   const tLand = (vz + Math.sqrt(Math.max(0, vz * vz + 2 * GRAVITY * (r.h - H)))) / GRAVITY;
   const dist = v * tLand;
@@ -759,6 +838,14 @@ function makeLanding(o) {
     d2: lip + Math.max(9, dist * 0.7), // kanten
     d3: lip + dist * 1.3 + 6,          // slutet av landningen
   };
+  // Jättehoppet: gap (ett djupt hål) mellan kanten och landningen, sedan en lång landning.
+  // För lite fart = man hamnar i hålet.
+  if (r.mega) {
+    // Uppmätt i spelet: luftfärden tar ungefär 0,105 s per m/s uppåtfart, oavsett fart framåt.
+    // Gapet är ungefär 45 % av hopplängden i normal fart och djupt som halva kickern – för långsamt = ner i hålet.
+    const tAir = 0.105 * vz;
+    Object.assign(f, { mega: true, H: r.h * 0.7, gap: Math.max(2.5, r.h * 0.55), d2: lip + Math.max(9, v * tAir * 0.45), d3: lip + v * tAir * 1.5 + 30 });
+  }
   if (r.terrain) {
     // Big Air: kickern är en del av samma snöbyggnad, med flacka sidor att åka upp på
     Object.assign(f, { kicker: true, hK: r.h, kHalf: r.w, vz: r.vz, lip, d0: o.d - r.l, d1: lip, half: r.w + 2.5, sideW: 7 });
@@ -785,7 +872,23 @@ function buildLipMarkers(o, lip = o.d + o.ramp.l, halfW = o.ramp.w + 0.3) {
   return g;
 }
 
-function makeObject(t, x, d) {
+// Jättehoppets kant: orange linje över hela bredden + flaggor vid sidorna
+function buildLipLine(o) {
+  const lip = o.d + o.ramp.l;
+  const g = new THREE.Group();
+  const line = new THREE.Mesh(new THREE.BoxGeometry(o.ramp.w * 2, 0.06, 0.35), lipMarkerMat);
+  line.position.set(o.x, groundY(o.x, lip - 0.25) + 0.02, -(lip - 0.25));
+  g.add(line);
+  for (let x = -o.ramp.w + 4; x <= o.ramp.w - 4; x += 6) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.5, 8), lipMarkerMat);
+    m.position.set(x, groundY(x, lip - 0.6) + 0.25, -(lip - 0.6));
+    g.add(m);
+  }
+  scene.add(g);
+  return g;
+}
+
+function makeObject(t, x, d, opts = {}) {
   const o = { ...t, x, d, dEnd: d, s: 1, rot: Math.random() * Math.PI * 2, tint: null, taken: false, model: t.type };
   const k = 0.82 + Math.random() * 0.25;
   switch (t.type) {
@@ -828,8 +931,9 @@ function makeObject(t, x, d) {
       break;
     }
     case 'ramp': {
-      let r = Math.random() * RAMPS.reduce((sum, rp) => sum + rp.weight, 0);
-      o.size = RAMPS.findIndex((rp) => (r -= rp.weight) < 0);
+      const sizeW = course.rampSizes || RAMPS.map((rp) => rp.weight);
+      let r = Math.random() * sizeW.reduce((sum, w) => sum + w, 0);
+      o.size = sizeW.findIndex((w) => (r -= w) < 0);
       if (course.moguls && o.size === 3) o.size = 2; // ingen Big Air mitt i puckelpisten
       o.ramp = RAMPS[o.size];
       o.model = `ramp${o.size}`;
@@ -838,7 +942,8 @@ function makeObject(t, x, d) {
       const airtime = 2 * (o.ramp.vz + 28 * 0.06) / GRAVITY;
       o.zone = { x: o.x, d: o.d + o.ramp.l, ux: 0, ud: 1, len: airtime * 26 + 10, half: 3.5 + (o.size === 3 ? 1.5 : 0) };
       if (Math.random() < (o.ramp.landing || 0)) o.feature = makeLanding(o);
-      if (o.ramp.terrain) o.mesh = buildLipMarkers(o);
+      if (o.ramp.mega) o.mesh = buildLipLine(o);
+      else if (o.ramp.terrain) o.mesh = buildLipMarkers(o);
       if (o.ramp.terrain) o.warn = true;
       if (course.moguls) {
         const end = o.feature ? o.feature.d3 : o.d + o.ramp.l + airtime * 14;
@@ -851,9 +956,10 @@ function makeObject(t, x, d) {
     case 'box': {
       o.len = t.type === 'rail' ? 15 + Math.random() * 8 : t.type === 'box' ? 9 + Math.random() * 5 : 11 + Math.random() * 6;
       const vs = LINEAR_VARIANTS[t.type];
-      o.variant = vs[Math.floor(Math.random() * vs.length)];
+      o.variant = opts.variant || vs[Math.floor(Math.random() * vs.length)];
       if (o.variant === 'up') o.len *= 0.75;
-      o.ra = (Math.random() - 0.5) * 0.3;
+      if (opts.len) o.len = opts.len;
+      o.ra = opts.ra ?? (Math.random() - 0.5) * 0.3;
       o.ux = Math.sin(o.ra);
       o.ud = Math.cos(o.ra);
       buildPath(o);
@@ -1082,7 +1188,7 @@ function syncInstances(time) {
     if (o.taken || isLinear(o) || NO_MODEL.has(o.type)) continue;
     const m = MODELS[o.model];
     const i = counts[o.model] || 0;
-    if (i >= m.cap) continue;
+    if (!m || i >= m.cap) continue; // jättehoppet är bara terräng
     const y = groundY(o.x, o.d);
     if (o.type === 'star') {
       dummy.position.set(o.x, y + 1.3 + Math.sin(time * 3 + o.rot) * 0.15, -o.d);
@@ -1329,7 +1435,7 @@ function updateNets(pd) {
   netStart = start;
   let posts = 0;
   for (let side = 0; side < 2; side++) {
-    const x = side ? NET_X : -NET_X;
+    const x = side ? netX() : -netX();
     for (let i = 0; i < NET_POINTS; i++) {
       const d = start + i * NET_SEG;
       const y = groundY(x, d);
@@ -1582,6 +1688,75 @@ function makeCostumes(add, mat, head, upper, mats) {
   add(new THREE.CylinderGeometry(0.157, 0.157, 0.05, 20), mat('#3e2723'), 0, 0.12, 0, g);
   add(new THREE.BoxGeometry(0.06, 0.06, 0.02), gold, 0, 0.12, -0.16, g);
 
+  // Pingvin: vit ansiktsmask, ögon, orange näbb och vit mage
+  g = group('penguin', head);
+  add(new THREE.SphereGeometry(0.1, 14, 10), white, 0, -0.01, -0.035, g).scale.set(0.95, 0.95, 0.85);
+  for (const sx of [-1, 1]) add(new THREE.SphereGeometry(0.016, 8, 6), black, sx * 0.04, 0.025, -0.118, g);
+  add(new THREE.ConeGeometry(0.03, 0.08, 10), mat('#ff9800'), 0, -0.02, -0.15, g).rotation.x = -Math.PI / 2;
+  g = group('penguin', upper);
+  add(new THREE.SphereGeometry(0.16, 14, 12), white, 0, 0.28, -0.085, g).scale.set(0.95, 1.45, 0.55);
+
+  // Viking: hjälm med horn och nässkydd, stort skägg
+  g = group('viking', head);
+  const iron = mat('#9e9e9e', { roughness: 0.35, metalness: 0.7 });
+  add(new THREE.SphereGeometry(0.124, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), iron, 0, 0.03, 0.005, g);
+  add(new THREE.TorusGeometry(0.122, 0.012, 6, 24), mat('#795548'), 0, 0.03, 0.005, g).rotation.x = Math.PI / 2;
+  add(new THREE.BoxGeometry(0.02, 0.07, 0.012), iron, 0, 0.0, -0.125, g);
+  for (const sx of [-1, 1]) {
+    const horn = add(new THREE.ConeGeometry(0.028, 0.15, 10), mat('#efebe9', { roughness: 0.5 }), sx * 0.15, 0.12, 0, g);
+    horn.rotation.z = sx * -0.75;
+  }
+  add(new THREE.SphereGeometry(0.095, 12, 10), hairM, 0, -0.09, -0.06, g).scale.set(1.15, 1.3, 0.7);
+  for (const sx of [-1, 1]) add(new THREE.CapsuleGeometry(0.018, 0.12, 4, 8), hairM, sx * 0.035, -0.2, -0.07, g);
+
+  // Zombie: olika stora ögon, sydda ärr och trasig mun
+  g = group('zombie', head);
+  add(new THREE.SphereGeometry(0.026, 10, 8), mat('#fffde7'), -0.042, 0.02, -0.1, g);
+  add(new THREE.SphereGeometry(0.011, 8, 6), mat('#b71c1c'), -0.042, 0.02, -0.124, g);
+  add(new THREE.SphereGeometry(0.014, 8, 6), black, 0.042, 0.018, -0.108, g);
+  add(new THREE.BoxGeometry(0.07, 0.022, 0.01), mat('#3e2723'), 0, -0.045, -0.108, g).rotation.z = 0.12;
+  for (const sx of [-0.02, 0.012]) add(new THREE.BoxGeometry(0.012, 0.014, 0.012), mat('#fff8e1'), sx, -0.038, -0.112, g);
+  add(new THREE.BoxGeometry(0.11, 0.006, 0.01), black, 0.01, 0.08, -0.095, g).rotation.z = -0.3;
+  for (let k = 0; k < 4; k++) add(new THREE.BoxGeometry(0.005, 0.022, 0.01), black, -0.035 + k * 0.025, 0.08 - k * 0.0075 + 0.001, -0.098, g);
+  add(new THREE.SphereGeometry(0.119, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.32), mat('#33291f', { roughness: 1 }), 0, 0.02, 0.01, g).scale.set(1.02, 1.1, 1.06);
+
+  // Astronaut: glashjälm med guldvisir, krage och kontrollpanel på bröstet
+  g = group('astro', head);
+  add(new THREE.SphereGeometry(0.175, 24, 18), new THREE.MeshStandardMaterial({ color: '#e3f2fd', transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.2, depthWrite: false }), 0, 0.01, 0, g).castShadow = false;
+  add(new THREE.SphereGeometry(0.178, 24, 12, Math.PI * 0.5 - 0.7, 1.4, Math.PI * 0.18, Math.PI * 0.32), new THREE.MeshStandardMaterial({ color: '#ffca28', metalness: 0.95, roughness: 0.12, transparent: true, opacity: 0.55, side: THREE.DoubleSide }), 0, 0.01, 0, g).rotation.y = Math.PI;
+  add(new THREE.TorusGeometry(0.13, 0.03, 8, 24), mat('#b0bec5', { metalness: 0.5, roughness: 0.3 }), 0, -0.14, 0, g).rotation.x = Math.PI / 2;
+  g = group('astro', upper);
+  add(new THREE.BoxGeometry(0.16, 0.1, 0.03), mat('#90a4ae'), 0, 0.33, -0.155, g);
+  [['#f44336', -0.045], ['#ffeb3b', 0], ['#4caf50', 0.045]].forEach(([c, x]) => add(new THREE.SphereGeometry(0.014, 8, 6), mat(c, { emissive: c, emissiveIntensity: 0.4 }), x, 0.33, -0.172, g));
+  add(new THREE.BoxGeometry(0.07, 0.045, 0.01), mat('#1565c0'), 0.11, 0.43, -0.135, g).rotation.y = 0.5;
+
+  // Superhjälte: ögonmask, emblem på bröstet och mantel
+  g = group('hero', head);
+  add(new THREE.CylinderGeometry(0.116, 0.116, 0.04, 20, 1, true, Math.PI - 1.1, 2.2), black, 0, 0.022, 0, g);
+  g = group('hero', upper);
+  add(new THREE.BoxGeometry(0.09, 0.09, 0.02), mat('#ffeb3b'), 0, 0.37, -0.15, g).rotation.z = Math.PI / 4;
+  add(new THREE.BoxGeometry(0.05, 0.05, 0.022), mat('#c62828'), 0, 0.37, -0.152, g).rotation.z = Math.PI / 4;
+  add(new THREE.CylinderGeometry(0.158, 0.158, 0.045, 20), mat('#ffeb3b'), 0, 0.1, 0, g);
+  const cape = (color) => {
+    const c = add(new THREE.BoxGeometry(0.44, 0.78, 0.016), mat(color, { roughness: 0.6, side: THREE.DoubleSide }), 0, 0.12, 0.27, g);
+    c.rotation.x = 0.22;
+    return c;
+  };
+  cape('#c62828');
+
+  // Guldkungen: krona med ädelstenar och lila mantel
+  g = group('crown', head);
+  const crownM = mat('#ffd54f', { roughness: 0.3, metalness: 0.4 });
+  add(new THREE.CylinderGeometry(0.105, 0.11, 0.06, 20, 1, true), crownM, 0, 0.12, 0, g);
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    add(new THREE.ConeGeometry(0.022, 0.06, 6), crownM, Math.sin(a) * 0.1, 0.18, Math.cos(a) * 0.1, g);
+    add(new THREE.SphereGeometry(0.013, 8, 6), mat(k % 2 ? '#e53935' : '#1e88e5', { roughness: 0.1, metalness: 0.3 }), Math.sin(a) * 0.108, 0.12, Math.cos(a) * 0.108, g);
+  }
+  g = group('kingcape', upper);
+  cape('#6a1b9a');
+  add(new THREE.TorusGeometry(0.15, 0.035, 8, 24), white, 0, 0.53, 0.02, g).rotation.x = Math.PI / 2;
+
   return parts;
 }
 
@@ -1764,10 +1939,12 @@ const currentCharacter = () => CHARACTERS.find((c) => c.id === save.character) |
 function applyLook(ch = currentCharacter()) {
   const m = skier.mats;
   m.jacket.color.set(ch.jacket || styleColor('jacket'));
-  m.jacket.metalness = ch.metal ? 0.35 : 0;
-  m.jacket.roughness = ch.metal ? 0.35 : 0.55;
+  m.jacket.metalness = ch.metal ? 0.35 : ch.gold ? 0.45 : 0;
+  m.jacket.roughness = ch.metal ? 0.35 : ch.gold ? 0.3 : 0.55;
   for (const k of ['pants', 'accent', 'skin', 'pack', 'boot']) m[k].color.set(ch[k] || CHAR_DEFAULT[k]);
-  m.pants.metalness = ch.metal ? 0.3 : 0;
+  m.pants.metalness = ch.metal ? 0.3 : ch.gold ? 0.4 : 0;
+  m.pants.roughness = ch.gold ? 0.3 : 0.85;
+  m.boot.metalness = ch.gold ? 0.4 : 0;
   m.skin.metalness = ch.metal ? 0.4 : 0;
   if (ch.hair) m.hair.color.set(ch.hair);
   for (const [id, groups] of Object.entries(skier.costumes)) {
@@ -2157,7 +2334,7 @@ function makeDeco(geo, x, d, rotY) {
 function spawnDecor(d0, d1) {
   if (course.pipe) return;
   const crossed = (every, offset = 0) => Math.floor((d1 - offset) / every) > Math.floor((d0 - offset) / every) && d1 > 60;
-  if (crossed(130)) {
+  if (crossed(130) && !course.mega) {
     const k = Math.floor(d1 / 130);
     const o = makeCannon(d1, k % 2 ? 1 : -1);
     if (!overlaps(o.x, o.d, 1.5)) objects.push(o);
@@ -2219,7 +2396,8 @@ function stripBlocked(z) {
 
 // ---------- Slalomportar ----------
 
-const GATE_HALF = 2.5; // halva portens bredd
+const GATE_HALF = 2.6; // halva portens bredd
+const SLALOM_MAX_MISS = 3; // så många missade portar innan man blir diskad
 const gateMats = {
   red: new THREE.MeshLambertMaterial({ color: '#e53935', side: THREE.DoubleSide }),
   blue: new THREE.MeshLambertMaterial({ color: '#1e88e5', side: THREE.DoubleSide }),
@@ -2257,8 +2435,7 @@ function spawnGates(limitD) {
       lastGate = null;
       continue;
     }
-    const center = 14 * Math.sin(d * 0.005);
-    const x = center + gateSide * (5 + Math.random() * 2);
+    const x = gateSide * (3.5 + Math.random() * 1.5); // portarna ligger nära mitten av den smala backen
     const o = { type: 'gate', x, d, dEnd: d, s: 1, color: gateSide > 0 ? 'red' : 'blue', passed: false, missed: false };
     o.mesh = buildGate(o);
     scene.add(o.mesh);
@@ -2272,7 +2449,7 @@ function spawnGates(limitD) {
     objects.push(o);
     lastGate = o;
     gateSide = -gateSide;
-    nextGateD += 22 + Math.random() * 6;
+    nextGateD += 26 + Math.random() * 6;
   }
 }
 
@@ -2280,7 +2457,7 @@ function checkGates() {
   const p = player;
   for (const o of objects) {
     if (o.type !== 'gate' || o.passed || o.missed || p.d < o.d) continue;
-    if (Math.abs(p.x - o.x) <= GATE_HALF + 0.2) {
+    if (Math.abs(p.x - o.x) <= GATE_HALF + 0.6) { // lite förlåtande: att snudda vid stången räknas
       o.passed = true;
       run.gates++;
       run.tricks += 30;
@@ -2289,9 +2466,9 @@ function checkGates() {
     } else {
       o.missed = true;
       run.missed++;
-      popup(t('gate.missed'), `${run.missed}/3`, '#e53935');
+      popup(t('gate.missed'), `${run.missed}/${SLALOM_MAX_MISS}`, '#e53935');
       Sound.denied();
-      if (run.missed >= 3) {
+      if (run.missed >= SLALOM_MAX_MISS) {
         p.crashReason = t('crash.dq');
         p.dq = true;
         endRun();
@@ -2301,16 +2478,79 @@ function checkGates() {
   }
 }
 
+// Rail rakt efter en kicker, där man landar i normal fart – hoppa, gör en 360 och landa på railen
+const RAIL_AFTER_JUMP = 0.6;
+function spawnRailAfterJump(ramp) {
+  const r = ramp.ramp;
+  if (r.terrain || ramp.feature || !course.weights.rail || Math.random() > RAIL_AFTER_JUMP) return;
+  const s = worldStats();
+  const v = s.cruise;
+  const vz = (r.vz + v * 0.06) * s.jumpPower;
+  const top = 0.7;
+  const tAir = (vz + Math.sqrt(vz * vz + 2 * GRAVITY * Math.max(0, r.h - top))) / GRAVITY;
+  const dist = v * tAir;
+  // Railen börjar lite före normal landning och räcker långt så att både lite långsammare och snabbare åkare når den
+  const start = ramp.d + r.l + dist * 0.75;
+  const len = Math.max(14, dist * 0.6 + 10);
+  if (start + len > runLength() - 40 || pipeEnv(start + len + 20) > 0) return;
+  if (stripBlocked({ x: ramp.x, d: start - 2, ux: 0, ud: 1, len: len + 4, half: 1.6 })) return;
+  const rail = makeObject(OBSTACLES.find((o) => o.type === 'rail'), ramp.x, start, { variant: 'straight', ra: 0, len });
+  objects.push(rail);
+  ramp.zone.len = Math.max(ramp.zone.len, start + len + 8 - ramp.zone.d);
+}
+
+// Big Air-banan: jättehopp efter varandra mitt i backen, med fri sträcka efter varje landning
+let nextMegaD = 60;
+function spawnMegaJumps(toD) {
+  const rampType = OBSTACLES.find((o) => o.type === 'ramp');
+  while (nextMegaD < toD && nextMegaD < runLength() - 170) {
+    const o = makeObject(rampType, 0, nextMegaD);
+    objects.push(o);
+    // Ibland en rail nerför landningen, där man landar i normal fart
+    const f = o.feature;
+    if (f && Math.random() < 0.45) {
+      const reach = (f.d2 - f.lip) / 0.68; // hopplängden i normal fart
+      const x = (Math.random() - 0.5) * 2 * (netX() - 5);
+      const rail = makeObject(OBSTACLES.find((t) => t.type === 'rail'), x, f.lip + reach * 0.85, { variant: 'straight', ra: 0, len: reach * 0.6 + 12 });
+      objects.push(rail);
+    }
+    nextMegaD = (o.feature ? o.feature.d3 : nextMegaD + 120) + 60; // skogsparti mellan hoppen
+  }
+}
+
+// I ett race genereras backen från ett gemensamt frö så att båda åker samma bana
+let worldRng = null;
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function spawnUntil(limitD) {
+  if (!worldRng) return spawnRows(limitD);
+  const random = Math.random;
+  Math.random = worldRng;
+  try { spawnRows(limitD); } finally { Math.random = random; }
+}
+
+function spawnRows(limitD) {
   limitD = Math.min(limitD, runLength() - 20); // tomt vid målet så att man kan stanna
   while (nextSpawnD < limitD) {
     if (course.slalom) spawnGates(nextSpawnD + 40); // portarna i takt med raderna så att listan hålls sorterad
-    const density = Math.min(0.013, 0.005 + nextSpawnD / 1000 * 0.0035) * course.density * difficulty.density;
+    if (course.mega) spawnMegaJumps(nextSpawnD + ROW + 60); // hoppen läggs ut i förväg så att uppfarten hålls fri från träd
+    // Svårare och svårare nerför backen: glest i början, tätt mot målet
+    const prog = clamp(nextSpawnD / runLength(), 0, 1);
+    const density = 0.0075 * (0.5 + 1.2 * prog) * course.density * difficulty.density;
     for (let n = BAND * ROW * density; n > 0; n--) {
       if (n < 1 && Math.random() > n) break;
       const d = nextSpawnD + Math.random() * ROW;
       const piped = pipeEnv(d) > 0;
-      const x = piped ? (Math.random() - 0.5) * 2 * (PIPE_COPING - 1.5) : (Math.random() - 0.5) * BAND;
+      const x = piped ? (Math.random() - 0.5) * 2 * (PIPE_COPING - 1.5) : (Math.random() - 0.5) * Math.min(BAND, 2 * (netX() - 3));
       if (d < 45 && Math.abs(x) < 8) continue; // fri start
       const kind = pickObstacle();
       if (piped && kind.type !== 'star') continue; // i pipen ligger bara stjärnor
@@ -2321,6 +2561,9 @@ function spawnUntil(limitD) {
       if (blockedByLinear(x, d, isLinear(kind) ? 5 : 3)) continue;
       if (BLOCKS_LANDING.has(kind.type) && inLandingZone(x, d, isLinear(kind) ? 1 : 1.5)) continue;
       if (kind.type !== 'star' && featureY(x, d) > 0.02) continue; // inget på landningsvallar
+      if (featureY(x, d) < -0.3) continue; // inget nere i Big Air-gapet
+      // Big Air: fri uppfart till kickern och fri landning – träden står mellan hoppen
+      if (kind.type !== 'star' && features.some((f) => f.mega && d > f.d0 - 25 && d < f.d3 + 6)) continue;
       if (isLinear(kind) && overlaps(x, d, 2)) continue;
       const o = makeObject(kind, x, d);
       // Inget får redan stå i räckets bana eller i hoppets landningszon
@@ -2335,6 +2578,7 @@ function spawnUntil(limitD) {
         continue;
       }
       objects.push(o);
+      if (o.type === 'ramp') spawnRailAfterJump(o);
       // Varningsskylt en bit före stora hopp
       if (o.warn || o.type === 'spine') {
         const sx = o.x + (o.x > 0 ? -1 : 1) * ((o.ramp ? o.ramp.w : 3) + 4);
@@ -2348,7 +2592,7 @@ function spawnUntil(limitD) {
     for (const side of [-1, 1]) {
       if (Math.random() < 0.85) {
         const tree = OBSTACLES[Math.random() < 0.8 ? 0 : 1];
-        const o = makeObject(tree, side * (NET_X + 2.5 + Math.random() * 30), nextSpawnD + Math.random() * ROW);
+        const o = makeObject(tree, side * (netX() + 2.5 + Math.random() * 30), nextSpawnD + Math.random() * ROW);
         if (Math.abs(o.x - LIFT_X) > 6 && !overlaps(o.x, o.d, footprint(o) * 0.7)) objects.push(o); // fri gata för liften
       }
     }
@@ -2375,6 +2619,7 @@ function resetWorld() {
   trail = [];
   run = { tricks: 0, stars: 0, gates: 0, missed: 0, maxSpeed: 0, maxAir: 0 };
   nextSpawnD = 20;
+  nextMegaD = 60;
   nextGateD = 60;
   features = [];
   calmZones = [];
@@ -2389,15 +2634,18 @@ function resetWorld() {
   buildFinish();
 }
 
-const runScore = () => Math.round((Math.floor(player.d) + run.tricks + run.stars) * difficulty.points);
+const courseUnlocked = (id = save.course) => save.courses.includes(id);
+const pointsMult = () => difficulty.points * (COURSE_REWARD[save.course] || 1) * (1 + ability('coins'));
+const SCORE_SCALE = 0.5; // alla poäng från åket (distans, tricks, stjärnor) halveras
+const runScore = () => Math.round((Math.floor(player.d) + run.tricks + run.stars) * pointsMult() * SCORE_SCALE) + (run.finishBonus || 0);
 
 // ---------- Skärmar ----------
 
-const OVERLAYS = ['intro', 'menu', 'shop', 'gameover', 'pause', 'board', 'settings', 'help', 'characters', 'badges'];
+const OVERLAYS = ['intro', 'menu', 'shop', 'gameover', 'pause', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2'];
 
 function showOverlay(name) {
   for (const id of OVERLAYS) $(id).classList.toggle('hidden', id !== name);
-  $('hud').classList.toggle('hidden', ['intro', 'menu', 'shop', 'board', 'settings', 'help', 'characters', 'badges'].includes(name));
+  $('hud').classList.toggle('hidden', ['intro', 'menu', 'shop', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2'].includes(name));
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (name) focusDefault(name);
 }
@@ -2455,6 +2703,10 @@ function goBack(overlay) {
   else if (overlay === 'intro') leaveIntro();
   else if (overlay !== 'menu') {
     if (overlay === 'characters') applyLook();
+    if (overlay === 'box') {
+      if (!boxSpinning) showCharacters();
+      return;
+    }
     showMenu();
   }
 }
@@ -2467,7 +2719,7 @@ function keepFocus(overlay, render) {
   if (idx >= 0 && els.length) els[Math.min(idx, els.length - 1)].focus();
 }
 
-const COURSE_ICONS = { classic: '🌲', park: '🏂', moguls: '⛰️', pipe: '🌀', slalom: '🚩' };
+const COURSE_ICONS = { classic: '🌲', park: '🏂', moguls: '⛰️', pipe: '🌀', slalom: '🚩', bigair: '🚀' };
 
 // Bläddra mellan banorna i menyn
 function cycleCourse(dir) {
@@ -2482,6 +2734,28 @@ function cycleCourse(dir) {
   card.classList.add(dir > 0 ? 'slide-left' : 'slide-right');
   if (focused === 'course-prev' || focused === 'course-next') $(focused).focus();
   Sound.tick();
+}
+
+function unlockCourse(id = save.course) {
+  const price = COURSE_PRICE[id] || 0;
+  if (courseUnlocked(id)) return;
+  if (save.bank < price) {
+    Sound.denied();
+    const card = $('course-card');
+    card.classList.remove('denied');
+    void card.offsetWidth;
+    card.classList.add('denied');
+    return;
+  }
+  save.bank -= price;
+  save.courses.push(id);
+  persist();
+  Sound.buy();
+  showMenu();
+  const card = $('course-card');
+  card.classList.add('unlocked-now');
+  setTimeout(() => card.classList.remove('unlocked-now'), 700);
+  $('btn-play').focus();
 }
 
 function setCourse(id) {
@@ -2547,6 +2821,7 @@ function applyLanguage() {
   lang = save.lang;
   applyStaticTexts();
   for (const opt of $('lb-select').options) opt.textContent = t(`course.${opt.value}`);
+  for (const b of $('lb-mode').children) b.textContent = t(`board.${b.dataset.mode}Tab`);
   for (const b of $('diff-seg').children) b.textContent = t(`diff.${b.dataset.diff}`);
   for (const b of $('time-seg').children) b.textContent = t(`time.${b.dataset.time}`);
   for (const b of $('poles-seg').children) b.textContent = t(b.dataset.poles === 'on' ? 'audio.on' : 'audio.off');
@@ -2640,21 +2915,35 @@ function leaveIntro() {
   setTimeout(() => {
     $('intro').classList.remove('leaving');
     showMenu();
+    if (!save.tutorialSeen) showOverlay('tutask'); // första gången: erbjud tutorialen
   }, 450);
 }
 
 function showMenu() {
   state = 'menu';
+  partyTrack();
   $('menu-bank').textContent = fmt(save.bank);
   updateBadgeDot();
   $('menu-best').textContent = fmt(save.best);
   // Bankortet i mitten: ikon, stort namn, beskrivning och egen färg per bana
   const card = $('course-card');
-  card.className = `course-card course-${save.course}`;
-  $('course-icon').textContent = COURSE_ICONS[save.course] || '🎿';
+  const locked = !courseUnlocked();
+  const price = COURSE_PRICE[save.course] || 0;
+  card.className = `course-card course-${save.course}${locked ? ' locked' : ''}`;
+  $('course-icon').textContent = locked ? '🔒' : COURSE_ICONS[save.course] || '🎿';
   $('course-name').textContent = t(`course.${save.course}`);
-  for (const dot of $('course-dots').children) dot.classList.toggle('active', dot.dataset.course === save.course);
-  $('course-desc').textContent = `${t(`course.${save.course}.desc`)} · ${t(`diff.${save.difficulty}`)}: ${fmt(runLength())} m, ${t('menu.pointsMult', { m: difficulty.points.toLocaleString(locale()) })}`;
+  for (const dot of $('course-dots').children) {
+    dot.classList.toggle('active', dot.dataset.course === save.course);
+    dot.classList.toggle('locked', !courseUnlocked(dot.dataset.course));
+  }
+  const mult = Math.round(pointsMult() * 100) / 100;
+  const bonus = Math.round((difficulty.finishBonus || 0) * (COURSE_REWARD[save.course] || 1));
+  $('course-desc').textContent = `${t(`course.${save.course}.desc`)} · ${t(`diff.${save.difficulty}`)}: ${fmt(runLength())} m, ${t('menu.pointsMult', { m: mult.toLocaleString(locale()) })}${bonus ? `, ${t('menu.finishBonus', { n: fmt(bonus) })}` : ''}`;
+  $('course-reward').textContent = COURSE_REWARD[save.course] > 1 ? t('course.reward', { m: COURSE_REWARD[save.course].toLocaleString(locale()) }) : '';
+  const play = $('btn-play');
+  play.classList.toggle('unlock', locked);
+  play.classList.toggle('cant', locked && save.bank < price);
+  play.textContent = locked ? `🔒 ${t('course.unlock')} · 🪙 ${fmt(price)}` : t('btn.play');
   // Kort sammanfattning av inställningarna så att huvudmenyn kan vara ren
   $('menu-summary').textContent = [
     `${currentCharacter().icon} ${t(`char.${save.character}`)}`,
@@ -2667,7 +2956,7 @@ function showMenu() {
 
 // Markerar valda alternativ i inställningsmenyn
 function refreshSettings() {
-  $('name-input').value = save.name || t('defaultName');
+  $('name-input').value = playerName();
   $('rider-ski').classList.toggle('active', !isBoard());
   $('rider-board').classList.toggle('active', isBoard());
   for (const b of $('diff-seg').children) b.classList.toggle('active', b.dataset.diff === save.difficulty);
@@ -2701,14 +2990,24 @@ function showCharacters() {
 function renderCharacters() {
   const grid = $('char-grid');
   grid.innerHTML = '';
+  $('btn-box').textContent = `🎁 ${t('box.title')} · 🪙 ${fmt(BOX_PRICE)}`;
   for (const ch of CHARACTERS) {
     const b = document.createElement('button');
-    b.className = `char-card char-${ch.id}${ch.id === save.character ? ' selected' : ''}`;
+    const owned = save.chars.includes(ch.id);
+    b.className = `char-card char-${ch.id} rar-${ch.rarity}${ch.id === save.character ? ' selected' : ''}${owned ? '' : ' locked'}`;
+    b.style.setProperty('--rar', RARITIES[ch.rarity].color);
     b.dataset.char = ch.id;
-    b.innerHTML = `<span class="char-ico">${ch.icon}</span><span class="char-name">${t(`char.${ch.id}`)}</span>`;
+    b.innerHTML = `<span class="char-ico">${ch.icon}</span><span class="char-name">${t(`char.${ch.id}`)}</span>${owned ? '' : '<span class="char-lock">🔒</span>'}`;
     b.addEventListener('focus', () => previewCharacter(ch));
     b.addEventListener('mouseenter', () => previewCharacter(ch));
     b.addEventListener('click', () => {
+      if (!save.chars.includes(ch.id)) {
+        Sound.denied();
+        b.classList.remove('denied');
+        void b.offsetWidth;
+        b.classList.add('denied');
+        return;
+      }
       save.character = ch.id;
       persist();
       applyLook();
@@ -2721,12 +3020,186 @@ function renderCharacters() {
   previewCharacter(currentCharacter());
 }
 
+// Förmågan som text, t.ex. "+10 % fart · +1 extraliv"
+function abilityText(ch) {
+  return ABILITY_KEYS.filter((k) => ch.ab && ch.ab[k])
+    .map((k) => t(`ab.${k}`, { n: k === 'lives' ? ch.ab[k] : Math.round(ch.ab[k] * 100) }))
+    .join(' · ');
+}
+
+function rarityTag(ch) {
+  const span = document.createElement('span');
+  span.className = `rar-tag rar-${ch.rarity}`;
+  span.style.setProperty('--rar', RARITIES[ch.rarity].color);
+  span.textContent = t(`rar.${ch.rarity}`) + (RARITIES[ch.rarity].chance ? ` · ${RARITIES[ch.rarity].chance} %` : '');
+  return span;
+}
+
 function previewCharacter(ch) {
   applyLook(ch);
-  $('char-title').textContent = `${ch.icon} ${t(`char.${ch.id}`)}`;
+  const owned = save.chars.includes(ch.id);
+  const title = $('char-title');
+  title.textContent = `${ch.icon} ${t(`char.${ch.id}`)} `;
+  title.append(rarityTag(ch));
   $('char-desc').textContent = t(`char.${ch.id}.desc`);
-  $('char-pick').textContent = ch.id === save.character ? `✔ ${t('shop.selected')}` : t('chars.pick');
-  $('char-pick').classList.toggle('is-selected', ch.id === save.character);
+  $('char-ability').textContent = `⚡ ${t('char.ability')}: ${abilityText(ch)}`;
+  $('char-pick').textContent = !owned ? t('char.locked') : ch.id === save.character ? `✔ ${t('shop.selected')}` : t('chars.pick');
+  $('char-pick').classList.toggle('is-selected', owned && ch.id === save.character);
+  $('char-pick').classList.toggle('is-locked', !owned);
+}
+
+// ---------- Karaktärsbox: snurra för 10 000, raritet avgör chansen ----------
+const BOX_CARD = 104; // kortbredd + mellanrum i snurran (px)
+const BOX_WIN = 40;   // vinnande kortets plats i remsan
+let boxSpinning = false;
+let boxResult = null;
+
+function rollCharacter() {
+  let r = Math.random() * 100;
+  let rarity = 'common';
+  for (const [id, info] of Object.entries(RARITIES)) {
+    if (!info.chance) continue;
+    if (r < info.chance) { rarity = id; break; }
+    r -= info.chance;
+  }
+  const pool = CHARACTERS.filter((c) => c.rarity === rarity);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function boxCard(ch) {
+  const d = document.createElement('div');
+  d.className = `box-card rar-${ch.rarity}`;
+  d.style.setProperty('--rar', RARITIES[ch.rarity].color);
+  d.innerHTML = `<span class="char-ico">${ch.icon}</span><span class="char-name">${t(`char.${ch.id}`)}</span>`;
+  return d;
+}
+
+function showBox() {
+  state = 'menu';
+  boxResult = null;
+  renderBox();
+  // Remsan fylls med slumpade karaktärer så att den inte är tom innan man snurrar
+  const reel = $('box-reel');
+  reel.innerHTML = '';
+  reel.style.transition = 'none';
+  reel.style.transform = 'translateX(0)';
+  for (let i = 0; i < 12; i++) reel.append(boxCard(rollCharacter()));
+  showOverlay('box');
+}
+
+function renderBox() {
+  setText('box-bank', fmt(save.bank));
+  const spin = $('btn-box-spin');
+  spin.textContent = t('box.spin', { p: fmt(BOX_PRICE) });
+  spin.setAttribute('aria-disabled', String(boxSpinning || save.bank < BOX_PRICE));
+  spin.classList.toggle('cant', save.bank < BOX_PRICE);
+  $('btn-box-equip').classList.toggle('hidden', !boxResult || !boxResult.isNew || boxSpinning);
+  const odds = $('box-odds');
+  odds.innerHTML = '';
+  for (const [id, info] of Object.entries(RARITIES)) {
+    if (!info.chance) continue;
+    const row = document.createElement('div');
+    row.className = 'odds-row';
+    row.style.setProperty('--rar', info.color);
+    const chars = CHARACTERS.filter((c) => c.rarity === id).map((c) => `<span title="${t(`char.${c.id}`)}" class="${save.chars.includes(c.id) ? 'got' : ''}">${c.icon}</span>`).join('');
+    row.innerHTML = `<b>${t(`rar.${id}`)}</b><span class="odds-pct">${info.chance} %</span><span class="odds-chars">${chars}</span>`;
+    odds.append(row);
+  }
+}
+
+function spinBox() {
+  if (boxSpinning) return;
+  if (save.bank < BOX_PRICE) {
+    Sound.denied();
+    setText('box-msg', t('box.poor', { p: fmt(BOX_PRICE) }));
+    $('box-msg').classList.remove('hidden');
+    return;
+  }
+  save.bank -= BOX_PRICE;
+  const win = rollCharacter();
+  const isNew = !save.chars.includes(win.id);
+  const refund = isNew ? 0 : RARITIES[win.rarity].refund;
+  if (isNew) save.chars.push(win.id);
+  else save.bank += refund;
+  persist(); // resultatet sparas direkt, även om man stänger under snurren
+  boxResult = { ch: win, isNew, refund };
+  boxSpinning = true;
+  $('box-result').classList.add('hidden');
+  $('box-msg').classList.add('hidden');
+  renderBox();
+  setText('box-bank', fmt(save.bank + (isNew ? 0 : -refund)));
+
+  const reel = $('box-reel');
+  reel.innerHTML = '';
+  reel.style.transition = 'none';
+  reel.style.transform = 'translateX(0)';
+  for (let i = 0; i < BOX_WIN + 5; i++) {
+    // Lite fler sällsynta kort i remsan än i verkligheten – det ser spännande ut när de susar förbi
+    let ch = rollCharacter();
+    if (i === BOX_WIN) ch = win;
+    else if (Math.random() < 0.08) ch = CHARACTERS.filter((c) => c.rarity === 'legendary' || c.rarity === 'epic')[Math.floor(Math.random() * 3)];
+    reel.append(boxCard(ch));
+  }
+  void reel.offsetWidth;
+  const wrapW = $('box-reel-wrap').clientWidth;
+  const jitter = (Math.random() - 0.5) * (BOX_CARD - 30);
+  const target = -(BOX_WIN * BOX_CARD + BOX_CARD / 2 - wrapW / 2 + jitter);
+  const dur = 5200;
+  reel.style.transition = `transform ${dur}ms cubic-bezier(0.08, 0.6, 0.12, 1)`;
+  reel.style.transform = `translateX(${target}px)`;
+  // Tick-ljud varje gång ett kort passerar mitten
+  let lastIdx = -1;
+  const tick = () => {
+    if (!boxSpinning) return;
+    const x = new DOMMatrixReadOnly(getComputedStyle(reel).transform).m41;
+    const idx = Math.floor((wrapW / 2 - x) / BOX_CARD);
+    if (idx !== lastIdx) { lastIdx = idx; Sound.tick(); }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(revealBox, dur + 150);
+}
+
+function revealBox() {
+  boxSpinning = false;
+  const { ch, isNew, refund } = boxResult;
+  const card = reelWinCard();
+  if (card) card.classList.add('won');
+  const res = $('box-result');
+  res.innerHTML = '';
+  res.style.setProperty('--rar', RARITIES[ch.rarity].color);
+  res.className = `box-result rar-${ch.rarity}`;
+  const big = document.createElement('div');
+  big.className = 'box-big';
+  big.textContent = ch.icon;
+  const info = document.createElement('div');
+  info.className = 'box-info';
+  const head = document.createElement('div');
+  head.className = 'box-head';
+  head.textContent = isNew ? t('box.new') : t('box.dupe', { n: fmt(refund) });
+  const name = document.createElement('div');
+  name.className = 'box-name';
+  name.textContent = `${t(`char.${ch.id}`)} `;
+  name.append(rarityTag(ch));
+  const ab = document.createElement('div');
+  ab.className = 'box-ab';
+  ab.textContent = `⚡ ${abilityText(ch)}`;
+  info.append(head, name, ab);
+  res.append(big, info);
+  Sound.reveal(Object.keys(RARITIES).indexOf(ch.rarity));
+  renderBox();
+  (isNew ? $('btn-box-equip') : $('btn-box-spin')).focus();
+}
+
+const reelWinCard = () => $('box-reel').children[BOX_WIN];
+
+function equipBoxResult() {
+  if (!boxResult) return;
+  save.character = boxResult.ch.id;
+  persist();
+  applyLook();
+  Sound.buy();
+  showCharacters();
 }
 
 function showHelp() {
@@ -2746,36 +3219,143 @@ function setRider(rider) {
 let lastRank = -1;
 let lastRankCourse = null;
 
+// Global topplista (Supabase REST). Utan config.js-nycklar finns bara den lokala listan.
+const Online = (() => {
+  const cfg = window.SKI_ONLINE || {};
+  const on = !!(cfg.url && cfg.key);
+  const api = on ? `${cfg.url.replace(/\/$/, '')}/rest/v1` : '';
+  const headers = { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json' };
+  const get = async (path, extra = {}) => {
+    const res = await fetch(`${api}/${path}`, { headers: { ...headers, ...extra } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  };
+  // Skickar ett åk. Misslyckas det (t.ex. offline) sparas det och skickas nästa gång.
+  async function submit(entry) {
+    if (!on) return false;
+    save.pendingScores.push(entry);
+    persist();
+    return flush();
+  }
+  let flushing = null;
+  function flush() {
+    if (!on || !save.pendingScores.length) return Promise.resolve(true);
+    flushing = flushing || (async () => {
+      try {
+        // Ett åk i taget: ett ogiltigt åk (400/409/422) slängs, annars (offline, 401, 429, 5xx) försöker vi igen senare
+        let ok = true;
+        while (save.pendingScores.length) {
+          const res = await fetch(`${api}/scores`, { method: 'POST', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(save.pendingScores[0]) });
+          if (!res.ok && ![400, 409, 422].includes(res.status)) {
+            ok = false;
+            break;
+          }
+          save.pendingScores.shift();
+          persist();
+        }
+        return ok;
+      } catch { return false; } finally { flushing = null; }
+    })();
+    return flushing;
+  }
+  const cols = 'player_id,name,score,dist,course,difficulty,rider,created_at';
+  const top = async (course, limit = 50) => (await get(`best_scores?select=${cols}&course=eq.${course}&order=score.desc,created_at.asc&limit=${limit}`)).json();
+  const mine = async (course) => (await get(`best_scores?select=${cols}&course=eq.${course}&player_id=eq.${encodeURIComponent(save.playerId)}`)).json();
+  // Plats = antal spelare med högre bästa poäng + 1
+  async function rank(course, score) {
+    // Andra spelare med bättre bästa åk (mitt eget bästa räknas inte)
+    const res = await get(`best_scores?select=player_id&course=eq.${course}&score=gt.${score}&player_id=neq.${encodeURIComponent(save.playerId)}&limit=1`, { Prefer: 'count=exact' });
+    const n = Number((res.headers.get('content-range') || '').split('/')[1]);
+    return Number.isFinite(n) ? n + 1 : null;
+  }
+  // Reservera ett namn: true = mitt nu, false = upptaget, null = gick inte att nå servern
+  async function claimName(name) {
+    try {
+      const res = await fetch(`${api}/rpc/claim_name`, { method: 'POST', headers, body: JSON.stringify({ p_id: save.playerId, p_name: name }) });
+      if (!res.ok) return null;
+      return (await res.json()) === true;
+    } catch { return null; }
+  }
+  return { on, submit, flush, top, mine, rank, claimName };
+})();
+Online.flush();
+
 let boardCourse = 'classic';
+let boardMode = Online.on ? 'global' : 'local';
+let boardReq = 0;
+
+function boardRow(e, i, me) {
+  const tr = document.createElement('tr');
+  if (me) tr.className = 'me';
+  else if (i < 3) tr.classList.add(`podium-${i + 1}`);
+  // Äldre åk sparades bara med datum
+  const at = e.at || (e.created_at && Date.parse(e.created_at));
+  const when = at
+    ? `${new Date(at).toLocaleDateString(locale())} ${new Date(at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`
+    : e.date;
+  const level = t(`diff.${DIFFICULTIES[e.difficulty] ? e.difficulty : 'normal'}`);
+  const cells = [['🥇', '🥈', '🥉'][i] || i + 1, e.name, e.rider === 'board' ? '🏂' : '⛷️', level, `${fmt(e.dist)} m`, fmt(e.score), when];
+  for (const c of cells) {
+    const td = document.createElement('td');
+    td.textContent = c;
+    tr.append(td);
+  }
+  return tr;
+}
+
+function setBoardMode(mode) {
+  boardMode = mode;
+  showBoard(boardCourse);
+  $('lb-mode').querySelector(`[data-mode="${mode}"]`).focus();
+}
 
 function showBoard(courseId = save.course) {
   state = 'menu';
   boardCourse = courseId;
   $('lb-select').value = courseId;
+  $('lb-mode').classList.toggle('hidden', !Online.on);
+  for (const b of $('lb-mode').children) b.classList.toggle('active', b.dataset.mode === boardMode);
   const body = $('lb-body');
   body.innerHTML = '';
-  // Äldre åk saknar bana och nivå: de räknas som Klassisk/Normal
-  const list = save.leaderboard.filter((e) => (e.course || 'classic') === courseId);
-  list.forEach((e, i) => {
-    const tr = document.createElement('tr');
-    if (courseId === lastRankCourse && i === lastRank) tr.className = 'me';
-    // Äldre åk sparades bara med datum
-    const when = e.at
-      ? `${new Date(e.at).toLocaleDateString(locale())} ${new Date(e.at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`
-      : e.date;
-    const level = t(`diff.${DIFFICULTIES[e.difficulty] ? e.difficulty : 'normal'}`);
-    if (i < 3) tr.classList.add(`podium-${i + 1}`);
-    const cells = [['🥇', '🥈', '🥉'][i] || i + 1, e.name, e.rider === 'board' ? '🏂' : '⛷️', level, `${fmt(e.dist)} m`, fmt(e.score), when];
-    for (const c of cells) {
-      const td = document.createElement('td');
-      td.textContent = c;
-      tr.append(td);
-    }
-    body.append(tr);
-  });
-  $('lb-empty').classList.toggle('hidden', list.length > 0);
+  $('lb-me').classList.add('hidden');
+  $('lb-status').classList.add('hidden');
+  const req = ++boardReq;
+  if (boardMode === 'global' && Online.on) {
+    $('lb-empty').classList.add('hidden');
+    $('lb-note').textContent = t('board.global');
+    setStatus('board.loading');
+    Promise.all([Online.top(courseId), Online.mine(courseId)]).then(async ([list, mineRows]) => {
+      if (req !== boardReq) return;
+      $('lb-status').classList.add('hidden');
+      list.forEach((e, i) => body.append(boardRow(e, i, e.player_id === save.playerId)));
+      $('lb-empty').classList.toggle('hidden', list.length > 0);
+      // Inte med bland de bästa: visa ens egen plats under listan
+      const me = mineRows[0];
+      if (me && !list.some((e) => e.player_id === save.playerId)) {
+        const r = await Online.rank(courseId, me.score);
+        if (req !== boardReq || !r) return;
+        const meBody = $('lb-me-body');
+        meBody.innerHTML = '';
+        meBody.append(boardRow(me, r - 1, true));
+        $('lb-me').classList.remove('hidden');
+      }
+    }).catch(() => {
+      if (req === boardReq) setStatus('board.error');
+    });
+  } else {
+    $('lb-note').textContent = t('board.local');
+    // Äldre åk saknar bana och nivå: de räknas som Klassisk/Normal
+    const list = save.leaderboard.filter((e) => (e.course || 'classic') === courseId);
+    list.forEach((e, i) => body.append(boardRow(e, i, courseId === lastRankCourse && i === lastRank)));
+    $('lb-empty').classList.toggle('hidden', list.length > 0);
+  }
   if (!$('board').classList.contains('hidden')) return;
   showOverlay('board');
+}
+
+function setStatus(key) {
+  setText('lb-status', t(key));
+  $('lb-status').classList.remove('hidden');
 }
 
 function showShop() {
@@ -2868,6 +3448,12 @@ function renderShop() {
 }
 
 function startRun() {
+  if (race) endRace();
+  party.pending = null;
+  if (!courseUnlocked()) {
+    if (state !== 'menu') return showMenu();
+    return unlockCourse();
+  }
   resetWorld();
   $('popups').innerHTML = '';
   wasMenu = true; // kameran hoppar direkt till starten istället för att svepa genom backen
@@ -2896,7 +3482,7 @@ function recordRun() {
   save.bestDist = Math.max(save.bestDist, dist);
   // Topplistan: de 10 bästa åken
   const entry = {
-    name: save.name || t('defaultName'), score: total, dist, rider: save.rider,
+    name: playerName(), score: total, dist, rider: save.rider,
     course: save.course, difficulty: save.difficulty, at: Date.now(),
   };
   // Topp 10 per bana
@@ -2906,9 +3492,25 @@ function recordRun() {
   lastRankCourse = save.course;
   save.leaderboard = [...save.leaderboard.filter((e) => !same(e)), ...mine];
   persist();
+  globalRank = null;
+  if (Online.on && total > 0) {
+    const course = save.course;
+    Online.submit({
+      player_id: save.playerId, name: entry.name.slice(0, 24), score: total, dist,
+      course, difficulty: save.difficulty, rider: save.rider,
+    }).then(() => Online.rank(course, total)).then((r) => {
+      if (!r) return;
+      globalRank = r;
+      setText('go-grank', t('go.grank', { rank: r }));
+      $('go-grank').classList.remove('hidden');
+    }).catch(() => {});
+  }
   runBadges(total, dist >= runLength());
+  raceDone(dist, total, dist >= runLength() && !player.dq);
   return { dist, total, record };
 }
+
+let globalRank = null;
 
 function rankText() {
   return lastRank >= 0 ? t('go.rank', { rank: lastRank + 1, course: t(`course.${save.course}`) }) : '';
@@ -2940,7 +3542,10 @@ function showResults({ dist, total, record }, title, reason) {
     rating.append(st);
   }
 
+  renderRaceResult();
   $('go-rank').textContent = rankText();
+  $('go-grank').classList.toggle('hidden', !globalRank);
+  if (globalRank) setText('go-grank', t('go.grank', { rank: globalRank }));
   $('go-rank').classList.toggle('hidden', lastRank < 0 || total <= 0);
   $('go-title').textContent = title;
   $('go-reason').textContent = reason;
@@ -2990,14 +3595,29 @@ $('btn-quit').addEventListener('click', () => {
 $('btn-board').addEventListener('click', () => showBoard());
 $('btn-start').addEventListener('click', leaveIntro);
 $('btn-lift-skip').addEventListener('click', () => { if (state === 'lift') endLift(); });
+// Nollställ allt: två varningsskärmar, sedan rensas allt utom språket
+$('btn-reset').addEventListener('click', () => showOverlay('reset1'));
+$('btn-reset1-no').addEventListener('click', showSettings);
+$('btn-reset1-yes').addEventListener('click', () => showOverlay('reset2'));
+$('btn-reset2-no').addEventListener('click', showSettings);
+$('btn-reset2-yes').addEventListener('click', () => {
+  // Språket behålls, och tutorial-frågan visas bara första gången någonsin
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ lang: save.lang, tutorialSeen: true })); } catch { /* privat läge */ }
+  location.reload();
+});
 $('course-prev').addEventListener('click', () => cycleCourse(-1));
 $('course-next').addEventListener('click', () => cycleCourse(1));
 $('course-card').addEventListener('click', startRun); // klick på kortet = åk den banan
 $('lb-select').addEventListener('change', (e) => showBoard(e.target.value));
+for (const mode of ['global', 'local']) $('lb-mode').append(segButton('', { mode }, () => setBoardMode(mode)));
 $('btn-settings').addEventListener('click', showSettings);
 $('btn-help').addEventListener('click', showHelp);
 $('btn-characters').addEventListener('click', showCharacters);
 $('btn-badges').addEventListener('click', showBadges);
+$('btn-party').addEventListener('click', showParty);
+$('btn-party-back').addEventListener('click', showMenu);
+$('btn-inv-yes').addEventListener('click', () => answerInvite(true));
+$('btn-inv-no').addEventListener('click', () => answerInvite(false));
 $('btn-badges-back').addEventListener('click', showMenu);
 $('btn-claim-all').addEventListener('click', () => {
   const open = BADGES.filter((b) => save.badges[b.id] === 'earned');
@@ -3011,12 +3631,24 @@ $('btn-claim-all').addEventListener('click', () => {
   keepFocus('badges', renderBadges);
 });
 $('btn-chars-back').addEventListener('click', () => { applyLook(); showMenu(); });
+$('btn-box').addEventListener('click', showBox);
+$('btn-box-spin').addEventListener('click', spinBox);
+$('btn-box-equip').addEventListener('click', equipBoxResult);
+$('btn-box-back').addEventListener('click', () => { if (!boxSpinning) showCharacters(); });
 $('char-grid').addEventListener('mouseleave', () => {
   const f = document.activeElement && document.activeElement.dataset.char;
   previewCharacter(CHARACTERS.find((c) => c.id === f) || currentCharacter());
 });
 $('btn-settings-back').addEventListener('click', showMenu);
 $('btn-help-back').addEventListener('click', showMenu);
+$('btn-tutorial').addEventListener('click', startTutorial);
+$('btn-tut-yes').addEventListener('click', startTutorial);
+$('btn-tut-no').addEventListener('click', () => {
+  save.tutorialSeen = true;
+  persist();
+  showMenu();
+});
+$('btn-tut-skip').addEventListener('click', () => endTutorial());
 $('btn-music').addEventListener('click', () => setAudio('music', !save.audio.music));
 $('btn-sfx').addEventListener('click', () => setAudio('sfx', !save.audio.sfx));
 updateAudioButtons();
@@ -3033,10 +3665,46 @@ $('sens-input').addEventListener('input', (e) => {
   persist();
   updateSensLabel();
 });
-$('name-input').addEventListener('input', (e) => {
-  save.name = e.target.value.trim().slice(0, 16);
-  persist();
-});
+// Namn: minst 3 tecken och unikt bland alla spelare (kollas mot servern när den finns)
+function playerName() {
+  return save.name || `${t('defaultName')}${save.playerId.slice(0, 4).toUpperCase()}`;
+}
+function nameMsg(key, vars = {}, kind = 'err') {
+  const el = $('name-msg');
+  el.textContent = key ? t(key, vars) : '';
+  el.className = `name-msg ${kind}${key ? '' : ' hidden'}`;
+}
+let nameReq = 0;
+async function commitName() {
+  const input = $('name-input');
+  const v = input.value.trim().slice(0, 16);
+  if (v === playerName()) return nameMsg(null);
+  if (v.length < 3) {
+    nameMsg('name.short');
+    input.value = playerName();
+    return;
+  }
+  if (!Online.on) {
+    save.name = v;
+    persist();
+    return nameMsg('name.saved', {}, 'ok');
+  }
+  const req = ++nameReq;
+  nameMsg('name.checking', {}, 'info');
+  const res = await Online.claimName(v);
+  if (req !== nameReq) return;
+  if (res === true) {
+    save.name = v;
+    persist();
+    nameMsg('name.ok', { name: v }, 'ok');
+    partyTrack(true);
+  } else {
+    nameMsg(res === false ? 'name.taken' : 'name.offline', { name: v });
+    input.value = playerName();
+  }
+}
+$('name-input').addEventListener('change', commitName);
+$('name-input').addEventListener('input', () => nameMsg(null));
 
 function popup(title, sub = '', color = '#1d2b3a') {
   const el = document.createElement('div');
@@ -3066,6 +3734,7 @@ function clearTricks() {
   const p = player;
   p.spin = 0;
   p.flipping = false;
+  p.trickCd = 0;
   p.flipProg = 0;
   p.flips = 0;
   p.frontFlips = 0;
@@ -3168,14 +3837,14 @@ function collectAirTricks() {
   let flips = p.flips;
   let fronts = p.frontFlips || 0;
   if (p.flipping) {
-    if (p.flipProg < 0.8) return 'crash.head';
+    if (p.flipProg < 0.8 - 0.3 * ability('land')) return 'crash.head';
     if (p.flipDir < 0) fronts++;
     else flips++;
   }
   // Varje halvvarv (180°) är ett giltigt läge – udda antal betyder att du landar baklänges
   const halves = Math.round(p.spin / Math.PI);
   const off = Math.abs(p.spin - halves * Math.PI);
-  if (off > 0.6 && Math.abs(p.spin) > 1) return 'crash.crooked';
+  if (off > 0.6 * (1 + ability('land')) && Math.abs(p.spin) > 1) return 'crash.crooked';
 
   const prefix = p.takeoffSwitch ? 'Switch ' : '';
   const c = p.combo;
@@ -3321,7 +3990,9 @@ function renderBadges() {
   }
 }
 
-const CHAIN_TIME = 2.5;
+const CHAIN_TIME = 3;
+const TRICK_COOLDOWN = 0.25; // sekunder mellan två volter i luften
+const TRICK_SCALE = 0.5; // trickpoängen halveras
 const chainMult = (n) => Math.min(4, 1 + 0.5 * (n - 1));
 
 function finishCombo() {
@@ -3333,7 +4004,7 @@ function finishCombo() {
     ch.n = ch.timer > 0 ? ch.n + 1 : 1;
     ch.timer = CHAIN_TIME;
     const cm = chainMult(ch.n);
-    const pts = Math.round(c.pts * mult * cm);
+    const pts = Math.round(c.pts * mult * cm * TRICK_SCALE * (1 + ability('tricks')) / (course.mega || course.pipe ? 3 : 1)); // Big Air och halfpipe: en tredjedel
     run.tricks += pts;
     run.maxChain = Math.max(run.maxChain || 0, ch.n);
     if (c.parts.length - (c.noMult || 0) >= 3) earnBadge('combo3');
@@ -3350,7 +4021,9 @@ function finishCombo() {
 function updateChain(dt) {
   const p = player;
   const ch = p.chain;
-  if (ch.timer > 0 && !p.air && !p.grind) {
+  // Tiden räknas ner även i luften, men står still medan man faktiskt gör ett trick (rotation, grab eller grind)
+  const tricking = p.grind || (p.air && (p.flipping || p.flips > 0 || p.frontFlips > 0 || Math.abs(p.spin) > 0.5 || currentGrab()));
+  if (ch.timer > 0 && !tricking) {
     ch.timer -= dt;
     if (ch.timer <= 0) {
       ch.timer = 0;
@@ -3395,8 +4068,14 @@ function leaveRock() {
 
 function land() {
   const p = player;
+  // Ner i Big Air-gapet: åket är slut, hjälmar hjälper inte
+  const gap = features.find((f) => f.mega && p.d > f.lip + 0.5 && p.d < f.d2 && Math.abs(p.x - f.x) < f.kHalf + 1);
+  if (gap) {
+    p.lives = 0;
+    crash('crash.gap');
+    return;
+  }
   p.prevBvy = 0;
-  p.slowmo = false;
   p.noGrind = null;
   if (p.pipeAir) {
     // Tillbaka ner längs väggen: den uppåtgående farten blir fart in mot pipen igen
@@ -3510,7 +4189,7 @@ function exitGrind(vz) {
   if (g.dist >= 30) earnBadge('grind30');
   if (g.dist > 1.5) {
     p.combo.parts.push(`${g.name} ${Math.round(g.dist)} m`);
-    p.combo.pts += Math.round(g.dist * g.o.ptsPerM * g.mult);
+    p.combo.pts += Math.round(g.dist * g.o.ptsPerM * g.mult * (1 + ability('grind')));
   }
 }
 
@@ -3537,7 +4216,7 @@ function updateGrind(dt, s) {
 
   // Balans: som en inverterad pendel som vill tippa – parera med ← →
   const input = isLeft() ? -1 : isRight() ? 1 : 0;
-  const noise = (Math.random() - 0.5) * 6 / (1 + save.upgrades.binding * 0.2) * difficulty.balance * (o.type === 'box' ? 0.6 : 1);
+  const noise = (Math.random() - 0.5) * 6 / (1 + save.upgrades.binding * 0.2) * difficulty.balance * (o.type === 'box' ? 0.6 : 1) / (1 + ability('grind'));
   p.balanceVel += (p.balance * 2.6 + noise + input * 5) * dt;
   p.balanceVel *= Math.max(0, 1 - 1.5 * dt);
   p.balance += p.balanceVel * dt;
@@ -3640,7 +4319,9 @@ function updateAir(dt, s) {
   if (p.spinArmed && isRight()) p.spin += s.spinRate * dt;
   // ↑ = framåtvolt, ↓ = bakåtvolt
   const front = wasPressed('ArrowUp', 'KeyW');
-  if (!p.flipping && (front || wasPressed('ArrowDown', 'KeyS'))) {
+  // Cooldown mellan volterna så att man inte kan spamma dem
+  p.trickCd = Math.max(0, (p.trickCd || 0) - dt);
+  if (!p.flipping && p.trickCd <= 0 && (front || wasPressed('ArrowDown', 'KeyS'))) {
     p.flipping = true;
     p.flipProg = 0;
     p.flipDir = front ? -1 : 1;
@@ -3649,6 +4330,7 @@ function updateAir(dt, s) {
     p.flipProg += dt / s.flipTime;
     if (p.flipProg >= 1) {
       p.flipping = false;
+      p.trickCd = TRICK_COOLDOWN;
       if (p.flipDir < 0) p.frontFlips = (p.frontFlips || 0) + 1;
       else p.flips++;
     }
@@ -3706,7 +4388,7 @@ function checkCollisions(s) {
     if (o.type === 'star') {
       if (p.z < 3 && dx * dx + dd * dd < 1.3 * 1.3) {
         o.taken = true;
-        run.stars += 25;
+        run.stars += Math.round(25 * (1 + ability('stars')));
         popup('⭐ +25', '', '#f9a825');
         Sound.star();
       }
@@ -3774,8 +4456,9 @@ function updatePipe(s) {
     // All fart ut mot väggen blir fart rakt upp, resten fortsätter nedför pipen
     const vlat = p.speed * Math.abs(Math.sin(p.angle));
     const vlong = p.speed * Math.cos(p.angle);
-    // Lite extra skjuts vid kanten, som när man "pumpar" i pipen
-    launch((vlat + 3) * s.jumpPower);
+    // Lite extra skjuts vid kanten, som när man "pumpar" i pipen. Över 10 m/s ger mer fart bara lite högre luft.
+    const up = vlat + 3;
+    launch((up <= 10 ? up : 10 + (up - 10) * 0.35) * s.jumpPower);
     p.pipeAir = { side, vlat: vlat + 3, a0: p.angle, vz0: p.vz };
     p.angle = 0;
     p.turnVel = 0;
@@ -3829,7 +4512,6 @@ function update(dt) {
       const bvy = db / dt;
       if (kick && kickFrac > 0.35) {
         launch((kick.vz + p.speed * 0.06) * s.jumpPower * Math.pow(kickFrac, 1.5));
-        p.slowmo = !!kick.kicker; // slow motion högst upp i Big Air
       }
       // Över ett krön faller marken bort snabbare än tyngdkraften drar ner dig – då lyfter du
       else if ((p.prevBvy || 0) > 2.5 && (p.prevBvy - bvy) / dt > GRAVITY) {
@@ -3852,7 +4534,7 @@ function update(dt) {
   }
 
   // Studsa mot avspärrningsnäten
-  const limit = NET_X - 0.7;
+  const limit = netX() - 0.7;
   if (!p.grind && Math.abs(p.x) > limit) {
     const side = Math.sign(p.x);
     p.x = side * limit;
@@ -4182,7 +4864,7 @@ function moveNpc(n, dt) {
       n.bx = n.x - n.amp * Math.sin(n.d * n.k + n.phase);
     }
   } else if (!n.air) {
-    n.x = clamp(n.bx + n.amp * Math.sin(arg), -NET_X + 3, NET_X - 3);
+    n.x = clamp(n.bx + n.amp * Math.sin(arg), -netX() + 2, netX() - 2);
   }
 
   let flip = 0;
@@ -4219,9 +4901,9 @@ function clearNpcs() {
 function updateNpcs(dt) {
   const p = player;
   // Ny åkare en bit framför dig ibland (inte i halfpipen)
-  if (!course.pipe && npcs.length < 5 && Math.random() < dt * 0.3 && p.d < runLength() - 300) {
+  if (!course.pipe && !course.mega && !tutorial && !race && npcs.length < 5 && Math.random() < dt * 0.3 && p.d < runLength() - 300) {
     const d = p.d + 160 + Math.random() * 60;
-    const bx = (Math.random() - 0.5) * (NET_X * 1.3);
+    const bx = (Math.random() - 0.5) * (netX() * 1.3);
     npcs.push({
       d, bx, x: bx, amp: 5 + Math.random() * 8, k: 0.06 + Math.random() * 0.05, phase: Math.random() * 6,
       v: 7 + Math.random() * 5, mesh: makeNpcMesh(), passed: false, z: 0, air: null, grind: null, target: null, tried: new Set(),
@@ -4299,7 +4981,7 @@ function buildFinish() {
   if (finishGroup) scene.remove(finishGroup);
   finishGroup = new THREE.Group();
   const d = runLength();
-  const half = NET_X - 0.5;
+  const half = netX() - 0.5;
   const postMat = new THREE.MeshLambertMaterial({ color: '#c62828' });
   let top = -Infinity;
   for (const sx of [-1, 1]) top = Math.max(top, groundY(sx * half, d));
@@ -4442,6 +5124,11 @@ function finishRun() {
   state = 'finish';
   p.finishT = 0;
   finishCombo();
+  // Målbonus på Normal och Svår (dyrare bana = större bonus)
+  if (difficulty.finishBonus && !tutorial) {
+    run.finishBonus = Math.round(difficulty.finishBonus * (COURSE_REWARD[save.course] || 1));
+    popup(`🏅 ${t('finish.bonus', { d: t(`diff.${save.difficulty}`) })}`, `+${fmt(run.finishBonus)}`, '#b8860b');
+  }
   const res = recordRun();
   p.finishRes = res;
   popup(`🏁 ${t('finish.title')}`, `+${fmt(res.total)}`, '#2e7d32');
@@ -4482,6 +5169,7 @@ function startLift() {
   features = [];
   calmZones = [];
   nextSpawnD = 20;
+  nextMegaD = 60;
   nextGateD = 60;
   gateSide = 1;
   lastGate = null;
@@ -4984,6 +5672,15 @@ function updateCamera(dt, time, snap = false) {
   const lookD = p.d + cz * 10;
   const lookX = p.x + sx * 10;
   lookTarget.set(lookX, groundY(lookX, lookD) - mogulY(lookX, lookD) + 1 + p.z * 0.5, -lookD);
+  if (course.mega && p.air) {
+    // Big Air: marken under åkaren kan vara gapet, så kameran följer åkarens riktiga höjd
+    // och siktar mellan åkaren och landningen
+    const skierY = groundY(p.x, p.d) + p.z;
+    const bx = p.x - sx * 10;
+    const bd = p.d - cz * 10;
+    camTarget.set(bx, Math.max(groundY(bx, bd) + 2, skierY + 3.5), -bd);
+    lookTarget.set(p.x + sx * 6, skierY - 1, -(p.d + cz * 6)); // åkaren i mitten, landningen syns nedanför
+  }
 
   if (snap) {
     camera.position.copy(camTarget);
@@ -5143,13 +5840,14 @@ function updateHud() {
   setText('hud-score', fmt(runScore()));
   setText('hud-speed', `${fmt(p.speed * 3.6)} km/h`);
   setText('hud-lives', p.lives > 0 ? '⛑️'.repeat(p.lives) : '–');
+  $('hud-lives').parentElement.classList.toggle('hidden', !!tutorial); // boten har extraliv – visa inte
   setText('hud-slope', `${Math.round(Math.atan(slopeAt(p.d)) * 180 / Math.PI)}°`);
   setText('hud-dir', t(isSwitch() ? 'dir.switch' : 'dir.forward'));
   $('hud-gates-wrap').classList.toggle('hidden', !course.slalom);
   if (course.slalom) setText('hud-gates', `${run.gates} ✓ · ${run.missed} ✗`);
   const playing = state === 'playing';
   if (!playing) $('chain').classList.add('hidden');
-  $('air-hint').classList.toggle('hidden', !(p.air && !p.smallAir && playing));
+  $('air-hint').classList.toggle('hidden', !(p.air && !p.smallAir && playing && !tutorial));
   $('balance').classList.toggle('hidden', !(p.grind && playing));
   if (p.grind) $('balance-dot').style.left = `${50 + clamp(p.balance, -1, 1) * 50}%`;
 }
@@ -5200,7 +5898,7 @@ document.addEventListener('contextmenu', (e) => { if (TOUCH) e.preventDefault();
 
 let touchUiShown = false;
 function updateTouchUi() {
-  const show = TOUCH && state === 'playing';
+  const show = TOUCH && state === 'playing' && !tutorial;
   if (show === touchUiShown) return;
   touchUiShown = show;
   $('touch-ui').classList.toggle('hidden', !show);
@@ -5218,25 +5916,534 @@ function enterMobileFullscreen() {
 }
 $('btn-start').addEventListener('click', enterMobileFullscreen);
 
+// ---------- Tutorial: en bot åker en kort bana och visar knapparna ----------
+let tutorial = null; // { step, t, botKeys, done }
+const TUT_KEYS = {
+  ArrowLeft: { key: '←', touch: '◀' }, ArrowRight: { key: '→', touch: '▶' }, ArrowDown: { key: '↓', touch: '▼' },
+  Space: { key: 'Space', touch: 'HOPP' }, KeyF: { key: 'F', touch: '🤙' }, KeyT: { key: 'T', touch: '⬇' },
+};
+// Steg efter sträcka: vilka knappar som visas och var hindren ligger
+const TUT_STEPS = [
+  { id: 'steer', until: 45, keys: ['ArrowLeft', 'ArrowRight'] },
+  { id: 'tuck', until: 75, keys: ['KeyT'] },
+  { id: 'jump', until: 100, keys: ['Space'] },
+  { id: 'spin', until: 172, keys: ['ArrowLeft', 'ArrowRight'], ramp: [2, 115] },
+  { id: 'flip', until: 252, keys: ['ArrowDown'], ramp: [2, 190] },
+  { id: 'grab', until: 330, keys: ['KeyF'], ramp: [2, 268] },
+  { id: 'rail', until: 420, keys: ['Space'], ramp: [0, 345], rail: true },
+  { id: 'done', until: Infinity, keys: [] },
+];
+
+function startTutorial() {
+  party.pending = null;
+  save.tutorialSeen = true;
+  persist();
+  if (race) endRace();
+  tutorial = { step: -1, t: 0, botKeys: new Set(), doneT: 0 };
+  // Klassisk bana utan slumpade hinder – bara tutorialens hopp och rail
+  course = COURSES.classic;
+  resetWorld();
+  objects.forEach(removeObject);
+  objects = [];
+  features = [];
+  nextSpawnD = 1e9;
+  nextGateD = 1e9;
+  const rampType = OBSTACLES.find((o) => o.type === 'ramp');
+  for (const st of TUT_STEPS) {
+    if (!st.ramp) continue;
+    const [size, d] = st.ramp;
+    const real = course;
+    course = { ...real, rampSizes: RAMPS.map((_, i) => (i === size ? 1 : 0)) };
+    const o = makeObject(rampType, 0, d);
+    course = real;
+    if (o.feature) {
+      features = features.filter((f) => f !== o.feature);
+      o.feature = null;
+    }
+    objects.push(o);
+    if (st.rail) {
+      const random = Math.random;
+      Math.random = () => 0; // railen ska alltid komma
+      spawnRailAfterJump(o);
+      Math.random = random;
+    }
+  }
+  objects.sort((a, b) => a.d - b.d);
+  player.lives = 99;
+  player.speed = stats().cruise;
+  $('popups').innerHTML = '';
+  wasMenu = true;
+  state = 'playing';
+  showOverlay(null);
+  $('tutorial').classList.remove('hidden');
+}
+
+function endTutorial() {
+  if (!tutorial) return;
+  for (const k of tutorial.botKeys) keys.delete(k);
+  keys.clear();
+  pressed.clear();
+  tutorial = null;
+  $('tutorial').classList.add('hidden');
+  course = COURSES[save.course] || COURSES.classic;
+  resetWorld();
+  showMenu();
+}
+
+// Boten: styr mot mitten, gör stegets trick och "trycker" på knapparna
+function updateTutorial(dt) {
+  const p = player;
+  const tu = tutorial;
+  tu.t += dt;
+  const idx = TUT_STEPS.findIndex((st) => p.d < st.until);
+  if (idx !== tu.step) {
+    tu.step = idx;
+    tu.stepT = 0;
+    tu.jumped = false;
+    renderTutorial();
+  }
+  tu.stepT += dt;
+  const st = TUT_STEPS[idx];
+  const want = new Set();
+  const airborne = p.air && !p.smallAir;
+  if (!p.air && !p.grind) {
+    // Styrning: slalom i första steget, annars rakt mot mitten
+    const tx = st.id === 'steer' ? 7 * Math.sin(tu.stepT * 1.6) : 0;
+    const aim = Math.atan2(tx - p.x, 10) * 0.7;
+    if (p.angle < aim - 0.05) want.add('ArrowRight');
+    else if (p.angle > aim + 0.05) want.add('ArrowLeft');
+  }
+  if (st.id === 'tuck' && !p.air) want.add('KeyT');
+  if (st.id === 'jump' && !tu.jumped && p.d > 84) {
+    want.add('Space');
+    tu.jumped = true;
+  }
+  // Tricks bara på stegets hopp (inte på små skutt i backen)
+  const overKicker = airborne && st.ramp && p.d > st.ramp[1] && p.d < st.ramp[1] + 40;
+  if (st.id === 'spin' && overKicker) {
+    // Snurra till 360 – hinns det inte före landningen, stanna på närmaste halvvarv
+    const a = Math.abs(p.spin);
+    const tLand = (p.vz + Math.sqrt(Math.max(0, p.vz * p.vz + 2 * GRAVITY * p.z))) / GRAVITY;
+    const nearHalf = a > 1 && Math.abs(a - Math.round(a / Math.PI) * Math.PI) < 0.12;
+    const nextHalf = (Math.floor(a / Math.PI) + 1) * Math.PI;
+    const tooLate = (nextHalf - a) / stats().spinRate > tLand - 0.05;
+    if (a < Math.PI * 2 - 0.12 && !(nearHalf && tooLate)) want.add('ArrowRight');
+  }
+  if (st.id === 'flip' && overKicker && !tu.jumped) {
+    want.add('ArrowDown');
+    tu.jumped = true;
+  }
+  if (st.id === 'grab' && overKicker && (p.vz > 0 || p.z > 0.6)) want.add('KeyF');
+  if (st.id === 'done') {
+    tu.doneT += dt;
+    if (tu.doneT > 3) {
+      endTutorial();
+      return;
+    }
+  }
+  // Släpp knappar som inte längre hålls, tryck nya
+  for (const k of tu.botKeys) if (!want.has(k)) keys.delete(k);
+  for (const k of want) if (!tu.botKeys.has(k)) virtualDown(k);
+  tu.botKeys = want;
+  for (const chip of $('tut-keys').children) chip.classList.toggle('on', keys.has(chip.dataset.code));
+}
+
+function renderTutorial() {
+  const st = TUT_STEPS[tutorial.step];
+  setText('tut-title', t(`tut.${st.id}`));
+  setText('tut-desc', t(TOUCH ? `tut.${st.id}.dt` : `tut.${st.id}.d`));
+  setText('tut-step', `${Math.min(tutorial.step + 1, TUT_STEPS.length - 1)} / ${TUT_STEPS.length - 1}`);
+  const wrap = $('tut-keys');
+  wrap.innerHTML = '';
+  for (const code of st.keys) {
+    const chip = document.createElement('kbd');
+    chip.className = 'tut-key';
+    chip.dataset.code = code;
+    chip.textContent = TUT_KEYS[code][TOUCH ? 'touch' : 'key'];
+    wrap.append(chip);
+  }
+}
+
+// ---------- Online-party: se vilka som är online och bjud in till race ----------
+// Bygger på Supabase Realtime (presence + broadcast) med samma nycklar som topplistan.
+const party = {
+  on: !!(Online.on && window.supabase),
+  client: null, lobby: null, ready: false,
+  players: [],     // andra spelare online
+  pending: null,   // inbjudan jag har skickat { to, raceId, until }
+  incoming: null,  // inbjudan till mig
+};
+let race = null;   // pågående race: { id, opp, seed, course, difficulty, startAt, ch, oppPos, oppDone, myDone, startedAt }
+let ghost = null;  // motståndarens åkare i backen
+const RACE_COUNTDOWN = 4000;
+
+function partyMe() {
+  const ch = currentCharacter();
+  const status = race ? 'race' : state === 'playing' || state === 'crashing' || state === 'finish' || state === 'lift' ? 'riding' : 'menu';
+  return { id: save.playerId, name: playerName(), icon: ch.icon, status, course: save.course };
+}
+
+function partyConnect() {
+  if (!party.on || party.client) return;
+  try {
+    const cfg = window.SKI_ONLINE;
+    party.client = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: false } });
+    party.lobby = party.client.channel('ski-lobby', { config: { presence: { key: save.playerId }, broadcast: { self: false } } });
+    party.lobby
+      .on('presence', { event: 'sync' }, partySync)
+      .on('broadcast', { event: 'invite' }, ({ payload }) => onInvite(payload))
+      .on('broadcast', { event: 'reply' }, ({ payload }) => onReply(payload))
+      .on('broadcast', { event: 'cancel' }, ({ payload }) => {
+        if (payload.to === save.playerId && race && race.id === payload.raceId && !race.startedAt) abortRace();
+      })
+      .subscribe((status) => {
+        party.ready = status === 'SUBSCRIBED';
+        if (party.ready) partyTrack(true);
+        renderParty();
+      });
+  } catch {
+    party.on = false;
+  }
+}
+
+// Uppdatera min status (meny/åker/race) – högst en gång per sekund om inget ändrats
+let lastTrack = '';
+function partyTrack(force = false) {
+  if (!party.ready) return;
+  const me = partyMe();
+  const key = JSON.stringify(me);
+  if (!force && key === lastTrack) return;
+  lastTrack = key;
+  party.lobby.track(me);
+}
+
+function partySync() {
+  const state0 = party.lobby.presenceState();
+  party.players = Object.values(state0).map((list) => list[0]).filter((p) => p && p.id !== save.playerId);
+  // Motståndaren har lämnat mitt i ett race
+  if (race && !race.oppDone && !party.players.some((p) => p.id === race.opp.id)) {
+    if (!race.startedAt) {
+      abortRace(); // försvann under nedräkningen
+    } else {
+      race.oppDone = { left: true, dist: 0, finished: false };
+      renderRaceResult();
+    }
+  }
+  renderParty();
+}
+
+function showParty() {
+  state = 'menu';
+  partyConnect();
+  showOverlay('party');
+  renderParty();
+}
+
+function renderParty() {
+  if ($('party').classList.contains('hidden')) return;
+  const list = $('party-list');
+  list.innerHTML = '';
+  const status = !party.on ? t('party.offline') : !party.ready ? t('party.connecting') : '';
+  setText('party-status', status);
+  $('party-status').classList.toggle('hidden', !status);
+  setText('party-me', party.ready ? t('party.me', { name: playerName(), course: t(`course.${save.course}`) }) : '');
+  for (const p of party.players) {
+    const row = document.createElement('div');
+    row.className = `party-row st-${['menu', 'riding', 'race'].includes(p.status) ? p.status : 'menu'}`;
+    const waiting = party.pending && party.pending.to === p.id;
+    // Allt från andra spelare sätts som text, aldrig som HTML
+    row.innerHTML = '<span class="party-ico"></span><span class="party-name"></span><span class="party-st"></span>';
+    row.querySelector('.party-ico').textContent = String(p.icon || '⛷️').slice(0, 8);
+    row.querySelector('.party-name').textContent = String(p.name || '').slice(0, 24);
+    row.querySelector('.party-st').textContent = ['menu', 'riding', 'race'].includes(p.status) ? t(`party.st.${p.status}`) : '';
+    const btn = document.createElement('button');
+    btn.className = 'party-invite';
+    btn.textContent = waiting ? t('party.waiting') : t('party.invite');
+    const busy = p.status !== 'menu' || !!party.pending || !!race;
+    btn.setAttribute('aria-disabled', String(busy));
+    btn.addEventListener('click', () => (busy ? Sound.denied() : sendInvite(p)));
+    row.append(btn);
+    list.append(row);
+  }
+  $('party-empty').classList.toggle('hidden', !party.ready || party.players.length > 0);
+}
+
+function sendInvite(p) {
+  const raceId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  party.pending = { to: p.id, name: p.name, raceId, course: save.course, difficulty: save.difficulty, seed: Math.floor(Math.random() * 2 ** 31) };
+  party.lobby.send({ type: 'broadcast', event: 'invite', payload: { ...party.pending, from: save.playerId, fromName: playerName() } });
+  Sound.click();
+  renderParty();
+  // Inget svar inom 20 s: ge upp
+  setTimeout(() => {
+    if (party.pending && party.pending.raceId === raceId) {
+      party.pending = null;
+      popup(`👥 ${t('party.noAnswer', { name: p.name })}`, '', '#5d4037');
+      renderParty();
+    }
+  }, 20000);
+}
+
+function onInvite(inv) {
+  if (inv.to !== save.playerId) return;
+  // Upptagen (åker, i liften, i tutorialen eller redan i ett race), eller banan är låst: tacka nej direkt
+  const locked = !courseUnlocked(inv.course);
+  if (race || party.incoming || tutorial || state !== 'menu' || locked) {
+    party.lobby.send({ type: 'broadcast', event: 'reply', payload: { to: inv.from, from: save.playerId, raceId: inv.raceId, ok: false, locked } });
+    return;
+  }
+  party.incoming = inv;
+  setText('invite-text', t('party.invited', { name: inv.fromName, course: t(`course.${inv.course}`) }));
+  $('invite-toast').classList.remove('hidden');
+  Sound.combo(3);
+  setTimeout(() => { if (party.incoming === inv) answerInvite(false); }, 20000);
+}
+
+function answerInvite(ok) {
+  const inv = party.incoming;
+  if (!inv) return;
+  if (state !== 'menu' || tutorial || race) ok = false; // har börjat åka sedan inbjudan kom
+  party.incoming = null;
+  $('invite-toast').classList.add('hidden');
+  party.lobby.send({ type: 'broadcast', event: 'reply', payload: { to: inv.from, from: save.playerId, raceId: inv.raceId, ok } });
+  if (ok) beginRace({ id: inv.raceId, opp: { id: inv.from, name: inv.fromName }, seed: inv.seed, course: inv.course, difficulty: inv.difficulty });
+}
+
+function onReply(r) {
+  if (r.to !== save.playerId) return;
+  const inv = party.pending;
+  const busy = state !== 'menu' || !!tutorial || !!race;
+  // Svar på en inbjudan som har gått ut, eller när jag redan åker: säg till den andra att racet inte blir av
+  if (!inv || inv.raceId !== r.raceId || busy) {
+    if (r.ok) party.lobby.send({ type: 'broadcast', event: 'cancel', payload: { to: r.from, raceId: r.raceId } });
+    if (inv && inv.raceId === r.raceId) party.pending = null;
+    return;
+  }
+  party.pending = null;
+  if (!r.ok) {
+    popup(`👥 ${t(r.locked ? 'party.locked' : 'party.declined', { name: inv.name })}`, '', '#5d4037');
+    renderParty();
+    return;
+  }
+  beginRace({ id: inv.raceId, opp: { id: inv.to, name: inv.name }, seed: inv.seed, course: inv.course, difficulty: inv.difficulty });
+}
+
+// Båda startar samtidigt: banan byggs från fröet och en nedräkning visas
+function beginRace({ id, opp, seed, course: courseId, difficulty: diffId }) {
+  party.pending = null;
+  race = { id, opp, seed, course: courseId, difficulty: diffId, startAt: performance.now() + RACE_COUNTDOWN, oppPos: null, oppDone: null, myDone: null, startedAt: 0, sent: 0, prev: { course: save.course, difficulty: save.difficulty } };
+  race.ch = party.client.channel(`ski-race-${id}`, { config: { broadcast: { self: false } } });
+  race.ch
+    .on('broadcast', { event: 'pos' }, ({ payload }) => { if (race && race.id === id) race.oppPos = payload; })
+    .on('broadcast', { event: 'done' }, ({ payload }) => {
+      if (!race || race.id !== id) return;
+      race.oppDone = payload;
+      renderRaceResult();
+    })
+    .subscribe();
+  save.course = COURSES[courseId] ? courseId : 'classic';
+  course = COURSES[save.course];
+  save.difficulty = DIFFICULTIES[diffId] ? diffId : 'normal';
+  difficulty = DIFFICULTIES[save.difficulty];
+  worldRng = mulberry32(seed);
+  resetWorld();
+  worldRng = null;
+  race.rng = mulberry32(seed + 1);
+  $('popups').innerHTML = '';
+  wasMenu = true;
+  player.speed = stats().cruise;
+  state = 'countdown';
+  showOverlay(null);
+  $('countdown').classList.remove('hidden');
+  ghost = makeNpcMesh();
+  ghost.add(makeNameTag(opp.name));
+  partyTrack(true);
+}
+
+// Nedräkning 3-2-1-KÖR
+function updateCountdown() {
+  const left = race ? race.startAt - performance.now() : 0;
+  const n = Math.ceil(left / 1000) - 1;
+  const txt = n > 0 ? String(n) : t('race.go');
+  if ($('countdown').textContent !== txt) {
+    $('countdown').textContent = txt;
+    if (left > 0) Sound.tick();
+  }
+  if (left <= 0) {
+    state = 'playing';
+    race.startedAt = performance.now();
+    Sound.combo(4);
+    setTimeout(() => $('countdown').classList.add('hidden'), 600);
+  }
+}
+
+// Under racet: skicka min position 10 ggr/s och flytta motståndarens åkare
+function updateRace(dt) {
+  // Världen fortsätter att genereras från samma frö under hela racet
+  if (race && !race.myDone) worldRng = race.rng;
+  if (!race) {
+    $('race-hud').classList.add('hidden');
+    return;
+  }
+  const p = player;
+  const now = performance.now();
+  if (state === 'playing' && now - race.sent > 100) {
+    race.sent = now;
+    race.ch.send({ type: 'broadcast', event: 'pos', payload: { x: p.x, d: p.d, z: p.z, a: p.angle, air: p.air, spin: p.spin } });
+  }
+  const o = race.oppPos;
+  if (ghost && o) {
+    // Mjuk förflyttning mot senast kända position
+    const gx = ghost.userData.x ?? o.x;
+    const gd = ghost.userData.d ?? o.d;
+    const k = smooth(10, dt);
+    ghost.userData.x = gx + (o.x - gx) * k;
+    ghost.userData.d = gd + (o.d - gd) * k;
+    const x = ghost.userData.x;
+    const d = ghost.userData.d;
+    ghost.position.set(x, groundY(x, d) + (o.z || 0), -d);
+    ghost.rotation.set(0, -o.a + (o.spin || 0), 0);
+    ghost.visible = !race.oppDone || !race.oppDone.left;
+  }
+  const hud = $('race-hud');
+  const playing = state === 'playing' || state === 'countdown' || state === 'crashing' || state === 'finish';
+  hud.classList.toggle('hidden', !playing);
+  if (playing) {
+    const diff = o ? Math.round(p.d - o.d) : 0;
+    setText('race-hud', `🆚 ${race.opp.name} · ${o ? fmt(Math.max(0, Math.round(o.d))) : 0} m (${diff >= 0 ? '+' : ''}${diff} m)`);
+  }
+}
+
+// Namnskylt ovanför motståndaren
+function makeNameTag(name) {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(106, 27, 154, 0.85)';
+  g.beginPath();
+  g.roundRect(4, 8, 248, 48, 24);
+  g.fill();
+  g.fillStyle = '#fff';
+  g.font = 'bold 30px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(name.slice(0, 14), 128, 33);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  sprite.scale.set(2.4, 0.6, 1);
+  sprite.position.y = 2.4;
+  return sprite;
+}
+
+// Mitt åk är slut (mål eller krasch): berätta det för motståndaren
+function raceDone(dist, score, finished) {
+  if (!race || race.myDone) return;
+  worldRng = null;
+  const time = race.startedAt ? (performance.now() - race.startedAt) / 1000 : 0;
+  race.myDone = { dist, score, finished, time };
+  race.ch.send({ type: 'broadcast', event: 'done', payload: race.myDone });
+  partyTrack(true);
+  if (race.oppDone) renderRaceResult(); // motståndaren var redan klar: avgör direkt (liften visar inga resultat)
+}
+
+// Vem vann? I mål slår inte i mål, snabbast tid vinner, annars längst sträcka
+function raceWinner() {
+  const a = race.myDone;
+  const b = race.oppDone;
+  if (!a || !b) return null;
+  if (b.left) return 'me';
+  if (a.finished !== b.finished) return a.finished ? 'me' : 'opp';
+  // Exakt lika: spelar-id avgör så att båda klienterna kommer fram till samma vinnare
+  const tie = save.playerId < race.opp.id ? 'me' : 'opp';
+  if (a.finished) return a.time === b.time ? tie : a.time < b.time ? 'me' : 'opp';
+  return a.dist === b.dist ? tie : a.dist > b.dist ? 'me' : 'opp';
+}
+
+let raceResultText = null; // senaste resultatet, visas på resultatskärmen även om racet redan är avgjort
+function renderRaceResult() {
+  const el = $('go-race');
+  if (!race || !race.myDone) {
+    el.classList.toggle('hidden', !raceResultText);
+    if (raceResultText) {
+      el.textContent = raceResultText.text;
+      el.className = `rank race-res race-${raceResultText.w}`;
+      raceResultText = null;
+    }
+    return;
+  }
+  el.classList.remove('hidden');
+  const w = raceWinner();
+  el.className = `rank race-res${w ? ` race-${w}` : ''}`;
+  if (!w) el.textContent = t('race.waiting', { name: race.opp.name });
+  else if (race.oppDone.left) el.textContent = t('race.left', { name: race.opp.name });
+  else el.textContent = w === 'me' ? t('race.won', { name: race.opp.name }) : t('race.lost', { name: race.opp.name });
+  if (w) {
+    if (w === 'me') {
+      // Vinnaren får dubbla pengar för rundan: lika mycket till som åket gav
+      const prize = race.myDone.score;
+      if (prize > 0) {
+        save.bank += prize;
+        persist();
+        el.textContent += ` ${t('race.prize', { n: fmt(prize) })}`;
+      }
+      Sound.combo(5);
+    }
+    // Resultatskärmen är inte öppen: visa vinnaren som en popup och spara texten till resultatskärmen
+    if ($('gameover').classList.contains('hidden')) {
+      popup(el.textContent, '', w === 'me' ? '#2e7d32' : '#c62828');
+      raceResultText = { text: el.textContent, w };
+    }
+    endRace();
+  }
+}
+
+function endRace() {
+  if (!race) return;
+  const ch = race.ch;
+  // Tillbaka till min egen bana och svårighetsgrad
+  save.course = race.prev.course;
+  save.difficulty = race.prev.difficulty;
+  course = COURSES[save.course] || COURSES.classic;
+  difficulty = DIFFICULTIES[save.difficulty] || DIFFICULTIES.normal;
+  persist();
+  race = null;
+  setTimeout(() => { if (party.client) party.client.removeChannel(ch); }, 1500);
+  if (ghost) {
+    scene.remove(ghost);
+    ghost = null;
+  }
+  worldRng = null;
+  partyTrack(true);
+}
+
+// Racet blev inte av (motståndaren försvann eller ångrade sig före start)
+function abortRace() {
+  const name = race ? race.opp.name : '';
+  endRace();
+  $('countdown').classList.add('hidden');
+  resetWorld();
+  showMenu();
+  popup(`👥 ${t('party.cancelled', { name })}`, '', '#5d4037');
+}
+
+partyConnect(); // syns direkt som online för andra
+
 // ---------- Huvudloop ----------
 
 let last = performance.now();
 let wasMenu = true;
 
-let timeScale = 1;
 
 function frame(now) {
   // rAF-tidsstämpeln kan ligga före performance.now() vid start: negativ dt får posen att skena iväg
   const realDt = clamp((now - last) / 1000, 0, 0.05);
-  // Slow motion högst upp i Big Air-hoppen
-  const p0 = player;
-  const slow = state === 'playing' && p0.slowmo && p0.air && p0.z > 3;
-  timeScale += ((slow ? 0.45 : 1) - timeScale) * smooth(slow ? 5 : 8, realDt);
-  const dt = realDt * timeScale;
+  const dt = realDt;
   const time = now / 1000;
   last = now;
 
-  if (state === 'playing') {
+  if (state === 'countdown') updateCountdown();
+  else if (state === 'playing') {
+    if (tutorial) updateTutorial(dt);
     update(dt);
     if (state === 'playing') updateNpcs(dt);
   } else if (state === 'crashing') updateCrash(dt);
@@ -5244,6 +6451,7 @@ function frame(now) {
   else if (state === 'lift') updateLift(dt);
 
   const inMenu = state === 'menu' || state === 'shop';
+  updateRace(dt);
   updateWorld(state === 'paused' ? 0 : dt, time);
   updateCamera(dt, time, wasMenu && !inMenu);
   wasMenu = inMenu;

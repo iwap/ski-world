@@ -327,6 +327,13 @@ const Sound = (() => {
       tone(1975.5, 0.3, { type: 'square', vol: 0.07, filter: 3000, delay: 0.07 });
       noise(0.15, { type: 'highpass', freq: 5000, vol: 0.08, delay: 0.07 });
     },
+    // Avslöjande i boxen: längre och ljusare fanfar ju sällsyntare (0–5)
+    reveal(level = 1) {
+      const notes = [523.3, 659.3, 784, 1046.5, 1318.5, 1568];
+      const n = Math.min(notes.length, 2 + level);
+      for (let i = 0; i < n; i++) tone(notes[i], 0.25 + (i === n - 1 ? 0.4 : 0), { type: 'triangle', vol: 0.12, delay: i * 0.09 });
+      if (level >= 4) noise(0.8, { type: 'highpass', freq: 6000, vol: 0.12, delay: n * 0.09 });
+    },
     denied() {
       tone(196, 0.15, { type: 'square', vol: 0.07, filter: 900 });
       tone(164.8, 0.2, { type: 'square', vol: 0.07, filter: 900, delay: 0.12 });

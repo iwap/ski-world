@@ -80,6 +80,7 @@
     <nav class="menu-corner">
       <button id="btn-characters" class="corner-btn corner-wide"><span class="ico">🦸</span><span data-i18n="menu.characters">Karaktärer</span></button>
       <button id="btn-badges" class="corner-btn corner-wide corner-gold"><span class="ico">🏅</span><span data-i18n="menu.badges">Badges</span><span id="badge-dot" class="badge-dot hidden">0</span></button>
+      <button id="btn-party" class="corner-btn corner-party"><span class="ico">👥</span><span data-i18n="menu.party">Online</span><span id="party-dot" class="badge-dot hidden">0</span></button>
       <button id="btn-shop" class="corner-btn"><span class="ico">🛒</span><span data-i18n="btn.shop">Butik</span></button>
       <button id="btn-board" class="corner-btn"><span class="ico">🏆</span><span data-i18n="btn.board">Topplista</span></button>
       <button id="btn-settings" class="corner-btn"><span class="ico">⚙️</span><span data-i18n="menu.settings">Inställningar</span></button>
@@ -93,12 +94,13 @@
           <span id="course-icon" class="course-icon"></span>
           <span id="course-name" class="course-name"></span>
           <span id="course-desc" class="course-desc"></span>
+          <span id="course-reward" class="course-reward"></span>
         </button>
         <button id="course-next" class="car-arrow" data-i18n-aria="menu.nextCourse">▶</button>
       </div>
       <div id="course-dots" class="course-dots" aria-hidden="true"></div>
       <p id="menu-summary" class="summary"></p>
-      <button id="btn-play" class="menu-play" data-autofocus data-i18n="btn.play">Åk!</button>
+      <button id="btn-play" class="menu-play" data-autofocus>Åk!</button>
       <p class="small keys-hint menu-keys"><kbd>←</kbd><kbd>→</kbd> <span data-i18n="menu.browse">bläddra</span> · <kbd>↑</kbd><kbd>↓</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span></p>
     </div>
 
@@ -111,6 +113,7 @@
       <div class="settings">
         <h3 class="set-group" data-i18n="set.g.player">🧑 Åkare</h3>
         <label class="row" for="name-input"><span class="row-label" data-i18n="menu.name">Namn</span><input id="name-input" maxlength="16" autocomplete="off"></label>
+        <p id="name-msg" class="name-msg hidden" aria-live="polite"></p>
         <div class="row"><span class="row-label" data-i18n="set.rider">Åkare</span>
           <div class="seg" role="group" data-i18n-aria="menu.chooseRider">
             <button id="rider-ski" class="seg-btn" data-i18n="rider.ski">⛷️ Skidor</button>
@@ -133,7 +136,7 @@
         <div class="row"><span class="row-label" data-i18n="set.sound">Ljudeffekter</span><button id="btn-sfx">🔊 Ljud: På</button></div>
         <div class="row"><span class="row-label" data-i18n="menu.chooseLang">Språk</span><div id="lang-seg" class="seg" role="group" data-i18n-aria="menu.chooseLang"></div></div>
       </div>
-      <div class="buttons ui-foot"><button id="btn-settings-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
+      <div class="buttons ui-foot"><button id="btn-reset" class="danger" data-i18n="set.reset">🗑️ Nollställ allt</button><button id="btn-settings-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
       <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
     </div>
   </div>
@@ -144,11 +147,99 @@
       <div class="char-info">
         <div id="char-title" class="char-title"></div>
         <p id="char-desc" class="char-desc"></p>
+        <p id="char-ability" class="char-ability"></p>
         <span id="char-pick" class="char-pick"></span>
       </div>
       <div id="char-grid" class="char-grid" role="group" data-i18n-aria="menu.characters"></div>
-      <div class="buttons ui-foot"><button id="btn-chars-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
+      <div class="buttons ui-foot"><button id="btn-box" class="box-btn"></button><button id="btn-chars-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
       <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="reset1" class="overlay hidden">
+    <div class="panel ui-panel theme-reset">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">⚠️</span><h2 data-i18n="reset.title1">Nollställ allt?</h2></header>
+      <p class="tag" data-i18n="reset.intro">Om du nollställer börjar du om från början, som en helt ny spelare. Det här tas bort:</p>
+      <ul class="reset-list">
+        <li data-i18n="reset.l.coins">🪙 Alla dina pengar</li>
+        <li data-i18n="reset.l.records">🏆 Dina rekord och hela topplistan på den här enheten</li>
+        <li data-i18n="reset.l.shop">🛒 Allt du köpt i butiken – uppgraderingar och skins</li>
+        <li data-i18n="reset.l.chars">🎁 Karaktärerna du fått ur boxen</li>
+        <li data-i18n="reset.l.courses">🔓 Banorna du låst upp</li>
+        <li data-i18n="reset.l.badges">🏅 Alla badges</li>
+      </ul>
+      <p class="small" data-i18n="reset.keep">Språket behålls. Dina åk på den globala topplistan finns kvar där.</p>
+      <div class="buttons ui-foot">
+        <button id="btn-reset1-no" class="primary" data-autofocus data-i18n="reset.cancel">Avbryt</button>
+        <button id="btn-reset1-yes" class="danger-btn" data-i18n="reset.next">Fortsätt</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reset2" class="overlay hidden">
+    <div class="panel ui-panel theme-reset">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🛑</span><h2 data-i18n="reset.title2">Är du helt säker?</h2></header>
+      <p class="tag" data-i18n="reset.final">Allt försvinner för alltid och det går inte att ångra.</p>
+      <div class="buttons ui-foot">
+        <button id="btn-reset2-no" class="primary" data-autofocus data-i18n="reset.keepBtn">Nej, behåll allt</button>
+        <button id="btn-reset2-yes" class="danger-btn" data-i18n="reset.do">🗑️ Ja, nollställ allt</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tutask" class="overlay hidden">
+    <div class="panel ui-panel theme-tut">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🎓</span><h2 data-i18n="tut.ask.title">Ny i backen?</h2></header>
+      <p class="tag" data-i18n="tut.ask.text">Vill du se en kort tutorial där en bot visar hur man spelar?</p>
+      <div class="buttons ui-foot">
+        <button id="btn-tut-no" data-i18n="tut.no">Hoppa över</button>
+        <button id="btn-tut-yes" class="primary" data-autofocus data-i18n="tut.show">▶ Visa tutorial</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tutorial" class="tutorial hidden" aria-live="polite">
+    <div class="tut-top"><span id="tut-step" class="tut-step"></span><button id="btn-tut-skip" class="tut-skip" data-i18n="tut.skipBtn">Hoppa över ✕</button></div>
+    <div id="tut-title" class="tut-title"></div>
+    <div id="tut-keys" class="tut-keys"></div>
+    <div id="tut-desc" class="tut-desc"></div>
+  </div>
+
+  <div id="party" class="overlay hidden">
+    <div class="panel ui-panel theme-party">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">👥</span><h2 data-i18n="party.title">Online</h2></header>
+      <p id="party-status" class="small party-status hidden"></p>
+      <p id="party-me" class="small party-me"></p>
+      <div id="party-list" class="party-list"></div>
+      <p id="party-empty" class="small party-empty hidden" data-i18n="party.empty">Ingen annan är online just nu.</p>
+      <p class="small" data-i18n="party.hint">Bjud in någon till ett race på banan du har valt i menyn.</p>
+      <div class="buttons ui-foot"><button id="btn-party-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="invite-toast" class="invite-toast hidden" role="alertdialog">
+    <div id="invite-text" class="invite-text"></div>
+    <div class="invite-btns"><button id="btn-inv-no" data-i18n="party.no">Nej tack</button><button id="btn-inv-yes" class="primary" data-i18n="party.yes">Kör! 🏁</button></div>
+  </div>
+  <div id="countdown" class="countdown hidden"></div>
+  <div id="race-hud" class="race-hud hidden"></div>
+
+  <div id="box" class="overlay hidden">
+    <div class="panel wide ui-panel theme-box">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🎁</span><h2 data-i18n="box.title">Karaktärsbox</h2>
+        <div class="coin-chip"><span aria-hidden="true">🪙</span> <b id="box-bank">0</b></div></header>
+      <div id="box-reel-wrap" class="box-reel-wrap"><div id="box-reel" class="box-reel"></div><div class="box-marker" aria-hidden="true"></div></div>
+      <div id="box-result" class="box-result hidden" aria-live="polite"></div>
+      <p id="box-msg" class="small box-msg hidden"></p>
+      <h3 class="box-odds-title" data-i18n="box.odds">Chanser</h3>
+      <div id="box-odds" class="box-odds"></div>
+      <div class="buttons ui-foot">
+        <button id="btn-box-back" data-i18n="btn.back">Tillbaka</button>
+        <button id="btn-box-equip" class="hidden" data-i18n="box.equip">Välj karaktären</button>
+        <button id="btn-box-spin" class="primary" data-autofocus></button>
+      </div>
+      <p class="small keys-hint"><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
     </div>
   </div>
 
@@ -193,7 +284,7 @@
         <tr><td><kbd>M</kbd></td><td data-i18n="ctrl.music">Musik av/på</td></tr>
       </table>
       <p class="small" data-i18n-html="menu.rules"></p>
-      <div class="buttons ui-foot"><button id="btn-help-back" class="primary" data-autofocus data-i18n="btn.back">Tillbaka</button></div>
+      <div class="buttons ui-foot"><button id="btn-tutorial" class="tut-open" data-i18n="tut.open">▶ Visa tutorial</button><button id="btn-help-back" class="primary" data-autofocus data-i18n="btn.back">Tillbaka</button></div>
       <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
     </div>
   </div>
@@ -233,6 +324,8 @@
       <div class="go-total"><span data-i18n="go.total">Totalt</span> <b id="go-total">0</b></div>
       <p id="go-record" class="record hidden" data-i18n="go.record">🏆 Nytt rekord!</p>
       <p id="go-rank" class="rank hidden"></p>
+      <p id="go-grank" class="rank grank hidden"></p>
+      <p id="go-race" class="rank race-res hidden"></p>
       <div class="buttons">
         <button id="btn-again" class="primary big-btn" data-autofocus data-i18n="btn.again">Åk igen</button>
         <button id="btn-go-shop" data-i18n="btn.shop">Butik</button>
@@ -245,13 +338,15 @@
   <div id="board" class="overlay hidden">
     <div class="panel wide ui-panel theme-board">
       <header class="ui-head"><span class="ui-ico" aria-hidden="true">🏆</span><h2 data-i18n="btn.board">Topplista</h2></header>
-      <div class="setup lb-tabs"><label class="select-field"><span data-i18n="menu.course">Bana</span> <select id="lb-select" data-i18n-aria="menu.chooseCourse"></select></label></div>
+      <div class="setup lb-tabs"><div id="lb-mode" class="seg hidden"></div><label class="select-field"><span data-i18n="menu.course">Bana</span> <select id="lb-select" data-i18n-aria="menu.chooseCourse"></select></label></div>
       <table class="leaderboard">
         <thead><tr><th>#</th><th data-i18n="board.name">Namn</th><th></th><th data-i18n="board.level">Nivå</th><th data-i18n="hud.dist">Distans</th><th data-i18n="hud.score">Poäng</th><th data-i18n="board.when">Datum & tid</th></tr></thead>
         <tbody id="lb-body"></tbody>
       </table>
+      <p id="lb-status" class="small lb-status hidden"></p>
+      <table id="lb-me" class="leaderboard lb-me hidden"><tbody id="lb-me-body"></tbody></table>
       <p id="lb-empty" class="small" data-i18n="board.empty">Inga åk än – ut i backen!</p>
-      <p class="small" data-i18n="board.local">Topplistan sparas i den här webbläsaren.</p>
+      <p id="lb-note" class="small"></p>
       <div class="buttons ui-foot"><button id="btn-lb-back" data-autofocus data-i18n="btn.back">Tillbaka</button></div>
       <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
     </div>
@@ -269,6 +364,8 @@
   </div>
 
   <script src="vendor/three.min.js"></script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="i18n.js"></script>
   <script src="audio.js"></script>
   <script src="game.js"></script>
