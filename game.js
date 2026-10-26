@@ -381,7 +381,11 @@ function loadSave() {
 }
 
 function persist() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* privat läge */ }
+  // Under dagens utmaning och online-sessioner är bana/svårighetsgrad tillfälliga – spara mina egna
+  let tmp = null;
+  try { tmp = daily || race; } catch { /* anropas även innan de är deklarerade (vid start) */ }
+  const data = tmp && tmp.prev ? { ...save, course: tmp.prev.course, difficulty: tmp.prev.difficulty } : save;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* privat läge */ }
 }
 
 const save = loadSave();
@@ -467,6 +471,15 @@ window.addEventListener('keydown', (e) => {
   // Under tutorialen styr boten – Esc/Enter hoppar över
   if (tutorial) {
     if (!e.repeat && (e.code === 'Escape' || e.code === 'Enter')) endTutorial();
+    return;
+  }
+  // Emojis i online-lägen: 1–4
+  const emo = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
+  if (emo >= 0 && !e.repeat && (race || lastSession)) sendEmote(emo);
+  if (state === 'spectate' && e.code === 'Escape' && !e.repeat) {
+    leaveSession();
+    resetWorld();
+    showMenu();
     return;
   }
   if (e.code === 'KeyC' && !e.repeat && (state === 'playing' || state === 'lift')) toggleCamera();
@@ -2437,11 +2450,20 @@ function spawnGates(limitD) {
     }
     const x = gateSide * (3.5 + Math.random() * 1.5); // portarna ligger nära mitten av den smala backen
     const o = { type: 'gate', x, d, dEnd: d, s: 1, color: gateSide > 0 ? 'red' : 'blue', passed: false, missed: false };
+    if (course.pslalom) {
+      // Parallellslalom: samma port i båda banorna
+      o.x = -LANE_X + x * 0.7;
+      o.lane = 0;
+      const twin = { ...o, x: LANE_X + x * 0.7, lane: 1 };
+      twin.mesh = buildGate(twin);
+      scene.add(twin.mesh);
+      objects.push(twin);
+    }
     o.mesh = buildGate(o);
     scene.add(o.mesh);
     // Håll fritt från träd mellan föregående port och den här
     if (lastGate) {
-      const dx = x - lastGate.x;
+      const dx = o.x - lastGate.x;
       const dd = d - lastGate.d;
       const L = Math.hypot(dx, dd);
       lastGate.zone = { x: lastGate.x, d: lastGate.d, ux: dx / L, ud: dd / L, len: L, half: 3.5 };
@@ -2457,6 +2479,7 @@ function checkGates() {
   const p = player;
   for (const o of objects) {
     if (o.type !== 'gate' || o.passed || o.missed || p.d < o.d) continue;
+    if (o.lane !== undefined && race && o.lane !== race.lane) continue; // den andra spelarens bana
     if (Math.abs(p.x - o.x) <= GATE_HALF + 0.6) { // lite förlåtande: att snudda vid stången räknas
       o.passed = true;
       run.gates++;
@@ -2641,11 +2664,11 @@ const runScore = () => Math.round((Math.floor(player.d) + run.tricks + run.stars
 
 // ---------- Skärmar ----------
 
-const OVERLAYS = ['intro', 'menu', 'shop', 'gameover', 'pause', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2'];
+const OVERLAYS = ['intro', 'menu', 'shop', 'gameover', 'pause', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2', 'daily', 'sessres'];
 
 function showOverlay(name) {
   for (const id of OVERLAYS) $(id).classList.toggle('hidden', id !== name);
-  $('hud').classList.toggle('hidden', ['intro', 'menu', 'shop', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2'].includes(name));
+  $('hud').classList.toggle('hidden', ['intro', 'menu', 'shop', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2', 'daily', 'sessres'].includes(name));
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (name) focusDefault(name);
 }
@@ -2822,6 +2845,7 @@ function applyLanguage() {
   applyStaticTexts();
   for (const opt of $('lb-select').options) opt.textContent = t(`course.${opt.value}`);
   for (const b of $('lb-mode').children) b.textContent = t(`board.${b.dataset.mode}Tab`);
+  for (const b of $('party-modes').children) b.textContent = `${PARTY_MODES[b.dataset.mode].icon} ${t(`mode.${b.dataset.mode}`)}`;
   for (const b of $('diff-seg').children) b.textContent = t(`diff.${b.dataset.diff}`);
   for (const b of $('time-seg').children) b.textContent = t(`time.${b.dataset.time}`);
   for (const b of $('poles-seg').children) b.textContent = t(b.dataset.poles === 'on' ? 'audio.on' : 'audio.off');
@@ -2921,6 +2945,11 @@ function leaveIntro() {
 
 function showMenu() {
   state = 'menu';
+  if (daily) {
+    endDaily();
+    resetWorld();
+  }
+  dailyAgain = false;
   partyTrack();
   $('menu-bank').textContent = fmt(save.bank);
   updateBadgeDot();
@@ -3274,7 +3303,7 @@ const Online = (() => {
       try {
         // Ett åk i taget: ett ogiltigt åk (400/409/422) slängs, annars (offline, 401, 429, 5xx) försöker vi igen senare
         if (!(await auth())) return false;
-        let ok = true;
+        let ok = true; // false = något åk kom inte fram eller nekades
         while (save.pendingScores.length) {
           // Åket sparas alltid på den inloggade spelaren
           const body = { ...save.pendingScores[0], player_id: save.playerId };
@@ -3283,6 +3312,7 @@ const Online = (() => {
             ok = false;
             break;
           }
+          if (!res.ok) ok = false; // ogiltigt eller spärrat (t.ex. för tätt) – slängs
           save.pendingScores.shift();
           persist();
         }
@@ -3310,7 +3340,16 @@ const Online = (() => {
       return (await res.json()) === true;
     } catch { return null; }
   }
-  return { on, client, auth, submit, flush, top, mine, rank, claimName };
+  // Dagens utmaning: dagens topplista, vilka som har spöken och själva spöket
+  const dailyTop = async (day) => (await get(`daily_best?select=player_id,name,score&day=eq.${day}&order=score.desc,created_at.asc&limit=10`)).json();
+  const dailyReplayIds = async (day) => (await get(`daily_replays?select=player_id&day=eq.${day}`)).json();
+  const dailyReplay = async (pid, day) => ((await (await get(`daily_replays?select=name,score,data&player_id=eq.${encodeURIComponent(pid)}&day=eq.${day}`)).json())[0] || null);
+  async function saveReplay(day, score, name, data) {
+    if (!(await auth())) return false;
+    const res = await fetch(`${api}/rpc/save_replay`, { method: 'POST', headers: await headers(), body: JSON.stringify({ p_day: day, p_score: score, p_name: name, p_data: data }) });
+    return res.ok;
+  }
+  return { on, client, auth, submit, flush, top, mine, rank, claimName, dailyTop, dailyReplayIds, dailyReplay, saveReplay };
 })();
 Online.flush();
 
@@ -3482,8 +3521,11 @@ function renderShop() {
 }
 
 function startRun() {
-  if (race) endRace();
-  party.pending = null;
+  leaveJoinedGroup();
+  raceResultText = null;
+  if (race) leaveSession();
+  if (daily) endDaily();
+  dailyAgain = false;
   if (!courseUnlocked()) {
     if (state !== 'menu') return showMenu();
     return unlockCourse();
@@ -3508,6 +3550,7 @@ function togglePause() {
 
 // Sparar åket (poäng, rekord, topplista) och returnerar resultatet
 function recordRun() {
+  if (daily) return recordDaily();
   const dist = Math.min(runLength(), Math.floor(player.d));
   const total = runScore();
   const record = total > save.best;
@@ -3551,6 +3594,18 @@ function rankText() {
 }
 
 function endRun() {
+  // Trick-duell och Big Air-tävling: avsluta = lämna sessionen, en krasch avslutar bara försöket
+  if (race && (race.mode === 'duel' || race.mode === 'bigair')) {
+    if (!player.quit && race.attempt) {
+      race.attempt.crashed = true;
+      endAttempt();
+      return;
+    }
+    leaveSession();
+    resetWorld();
+    showMenu();
+    return;
+  }
   showResults(recordRun(), t(player.dq ? 'go.dq' : player.quit ? 'go.quit' : 'go.crash'), player.crashReason);
 }
 
@@ -3617,7 +3672,7 @@ $('btn-play').addEventListener('click', startRun);
 $('btn-shop').addEventListener('click', showShop);
 $('btn-shop-back').addEventListener('click', showMenu);
 $('btn-shop-play').addEventListener('click', startRun);
-$('btn-again').addEventListener('click', startRun);
+$('btn-again').addEventListener('click', () => (dailyAgain ? startDaily() : startRun()));
 $('btn-go-shop').addEventListener('click', showShop);
 $('btn-go-menu').addEventListener('click', showMenu);
 $('btn-resume').addEventListener('click', togglePause);
@@ -3649,6 +3704,16 @@ $('btn-help').addEventListener('click', showHelp);
 $('btn-characters').addEventListener('click', showCharacters);
 $('btn-badges').addEventListener('click', showBadges);
 $('btn-party').addEventListener('click', showParty);
+$('btn-daily').addEventListener('click', showDaily);
+$('btn-daily-back').addEventListener('click', showMenu);
+$('btn-daily-go').addEventListener('click', () => startDaily());
+$('btn-daily-ghost-me').addEventListener('click', () => {
+  const g = save.dailyGhost;
+  if (g && g.day === dayKey()) startDaily({ data: g.data, name: t('daily.myGhost') });
+});
+$('btn-rematch').addEventListener('click', rematch);
+$('btn-sessres-rematch').addEventListener('click', rematch);
+$('btn-sessres-menu').addEventListener('click', showMenu);
 $('btn-party-back').addEventListener('click', showMenu);
 $('btn-inv-yes').addEventListener('click', () => answerInvite(true));
 $('btn-inv-no').addEventListener('click', () => answerInvite(false));
@@ -3800,6 +3865,7 @@ function launch(vz, quiet = false) {
 
 function crash(reasonKey, obstacle, kind) {
   const p = player;
+  partyCrash();
   const reason = t(reasonKey);
   const f = feet();
   const startZ = p.z;
@@ -3883,10 +3949,14 @@ function collectAirTricks() {
   const prefix = p.takeoffSwitch ? 'Switch ' : '';
   const c = p.combo;
   const n = Math.abs(halves);
+  c.sig = c.sig || []; // språkoberoende beskrivning av tricket (trick-duellen)
   if (n > 0) {
     c.parts.push(`${prefix}${n * 180}`);
     c.pts += 40 * n * (n + 1) / 2;
+    c.sig.push(`spin${n * 180}`);
   }
+  if (flips > 0) c.sig.push(`back${flips}`);
+  if (fronts > 0) c.sig.push(`front${fronts}`);
   if (flips > 0) {
     c.parts.push(flips === 1 ? 'Backflip' : flips === 2 ? t('trick.doubleBackflip') : `${flips}x backflip`);
     c.pts += 150 * flips * (flips + 1) / 2;
@@ -3896,6 +3966,7 @@ function collectAirTricks() {
     c.pts += 170 * fronts * (fronts + 1) / 2;
   }
   const grabs = addGrabs(c);
+  for (const g of grabs) c.sig.push(`grab-${g}`);
   // Perfekt landning: nästan exakt rakt (under ~7°) efter snurr eller volt, och volten helt klar
   const flipClean = !p.flipping || p.flipProg >= 0.97;
   const perfect = (n > 0 || flips > 0 || fronts > 0) && off < 0.12 && flipClean;
@@ -4039,6 +4110,7 @@ function finishCombo() {
     ch.timer = CHAIN_TIME;
     const cm = chainMult(ch.n);
     const pts = Math.round(c.pts * mult * cm * TRICK_SCALE * (1 + ability('tricks')) / (course.mega || course.pipe ? 3 : 1)); // Big Air och halfpipe: en tredjedel
+    partyCombo(c, Math.round(c.pts * mult)); // trick-duell och Big Air-tävling
     run.tricks += pts;
     run.maxChain = Math.max(run.maxChain || 0, ch.n);
     if (c.parts.length - (c.noMult || 0) >= 3) earnBadge('combo3');
@@ -4105,6 +4177,12 @@ function land() {
   // Ner i Big Air-gapet: åket är slut, hjälmar hjälper inte
   const gap = features.find((f) => f.mega && p.d > f.lip + 0.5 && p.d < f.d2 && Math.abs(p.x - f.x) < f.kHalf + 1);
   if (gap) {
+    // Big Air-tävling: bara försöket är slut. Annars: åket är slut, hjälmar hjälper inte.
+    if (race && race.attempt) {
+      race.attempt.crashed = true;
+      endAttempt();
+      return;
+    }
     p.lives = 0;
     crash('crash.gap');
     return;
@@ -4568,6 +4646,21 @@ function update(dt) {
   }
 
   // Studsa mot avspärrningsnäten
+  // Parallellslalom: håll dig i din egen bana
+  if (course.pslalom && race && !p.grind) {
+    const lo = race.lane === 0 ? -netX() + 0.7 : 0.7;
+    const hi = race.lane === 0 ? -0.7 : netX() - 0.7;
+    if (p.x < lo || p.x > hi) {
+      const side = p.x < lo ? -1 : 1;
+      p.x = clamp(p.x, lo, hi);
+      if (Math.sin(p.angle) * side > 0) {
+        p.angle = -p.angle * 0.5;
+        p.turnVel = 0;
+        p.speed *= 0.7;
+        Sound.bounce();
+      }
+    }
+  }
   const limit = netX() - 0.7;
   if (!p.grind && Math.abs(p.x) > limit) {
     const side = Math.sign(p.x);
@@ -5874,7 +5967,8 @@ function updateHud() {
   setText('hud-score', fmt(runScore()));
   setText('hud-speed', `${fmt(p.speed * 3.6)} km/h`);
   setText('hud-lives', p.lives > 0 ? '⛑️'.repeat(p.lives) : '–');
-  $('hud-lives').parentElement.classList.toggle('hidden', !!tutorial); // boten har extraliv – visa inte
+  // Tutorialen och minilägena har extraliv – visa inte hjälmarna
+  $('hud-lives').parentElement.classList.toggle('hidden', !!tutorial || !!(race && (race.mode === 'duel' || race.mode === 'bigair')));
   setText('hud-slope', `${Math.round(Math.atan(slopeAt(p.d)) * 180 / Math.PI)}°`);
   setText('hud-dir', t(isSwitch() ? 'dir.switch' : 'dir.forward'));
   $('hud-gates-wrap').classList.toggle('hidden', !course.slalom);
@@ -5925,7 +6019,15 @@ for (const btn of document.querySelectorAll('#touch-ui [data-key]')) {
   });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) btn.addEventListener(ev, () => releaseTouch(btn));
 }
-$('tc-pause').addEventListener('click', () => togglePause());
+$('tc-pause').addEventListener('click', () => {
+  if (state === 'spectate') {
+    leaveSession();
+    resetWorld();
+    showMenu();
+  } else {
+    togglePause();
+  }
+});
 $('tc-cam').addEventListener('click', () => toggleCamera());
 // Inga långtryck-menyer eller dubbeltrycks-zoom på spelytan
 document.addEventListener('contextmenu', (e) => { if (TOUCH) e.preventDefault(); });
@@ -5969,10 +6071,12 @@ const TUT_STEPS = [
 ];
 
 function startTutorial() {
-  party.pending = null;
+  leaveJoinedGroup();
   save.tutorialSeen = true;
   persist();
-  if (race) endRace();
+  if (race) leaveSession();
+  if (party.hosting) cancelHosting();
+  if (daily) endDaily();
   tutorial = { step: -1, t: 0, botKeys: new Set(), doneT: 0 };
   // Klassisk bana utan slumpade hinder – bara tutorialens hopp och rail
   course = COURSES.classic;
@@ -6098,22 +6202,239 @@ function renderTutorial() {
   }
 }
 
-// ---------- Online-party: se vilka som är online och bjud in till race ----------
-// Bygger på Supabase Realtime (presence + broadcast) med samma nycklar som topplistan.
+// ---------- Dagens utmaning: samma bana för alla varje dag, med spöken ----------
+const DAILY_COURSES = ['classic', 'park', 'moguls', 'slalom', 'bigair', 'pipe'];
+const REPLAY_STEP = 0.15; // sekunder mellan spökets mätpunkter
+let daily = null;         // pågående dagens åk: { day, seed, course, rng, rec, t, ghost, prev, done }
+let dailyAgain = false;   // "Åk igen" på resultatskärmen kör dagens bana igen
+let dailyResultText = null;
+
+const dayKey = (date = new Date()) => date.toISOString().slice(0, 10); // UTC-datum, samma för alla
+function dayInfo(day = dayKey()) {
+  let h = 2166136261;
+  for (const ch of day) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const idx = Math.floor(Date.parse(`${day}T00:00:00Z`) / 86400000);
+  return { day, seed: h >>> 0, course: DAILY_COURSES[idx % DAILY_COURSES.length] };
+}
+
+function timeToNextDay() {
+  const now = new Date();
+  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  const m = Math.max(0, Math.floor((next - now) / 60000));
+  return t('daily.next', { h: Math.floor(m / 60), m: m % 60 });
+}
+
+function myDailyBest() {
+  const b = save.dailyBest;
+  return b && b.day === dayKey() ? b : null;
+}
+
+function showDaily() {
+  state = 'menu';
+  dailyAgain = false;
+  showOverlay('daily');
+  renderDaily();
+}
+
+let dailyReq = 0;
+function renderDaily() {
+  const info = dayInfo();
+  $('daily-course').className = `daily-course course-${info.course}`;
+  setText('daily-course-name', `${COURSE_ICONS[info.course]} ${t(`course.${info.course}`)}`);
+  setText('daily-next', timeToNextDay());
+  const best = myDailyBest();
+  setText('daily-best', best ? t('daily.myBest', { n: fmt(best.score) }) : t('daily.noRun'));
+  const ghostMine = $('btn-daily-ghost-me');
+  ghostMine.classList.toggle('hidden', !(save.dailyGhost && save.dailyGhost.day === info.day));
+  const list = $('daily-list');
+  list.innerHTML = '';
+  if (!Online.on) {
+    setText('daily-status', t('daily.offline'));
+    return;
+  }
+  setText('daily-status', t('board.loading'));
+  const req = ++dailyReq;
+  Promise.all([Online.dailyTop(info.day), Online.dailyReplayIds(info.day)]).then(([rows, ghosts]) => {
+    if (req !== dailyReq) return;
+    setText('daily-status', rows.length ? '' : t('daily.empty'));
+    const withGhost = new Set(ghosts.map((g) => g.player_id));
+    rows.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = `daily-row${r.player_id === save.playerId ? ' me' : ''}`;
+      row.innerHTML = '<span class="dr-rank"></span><span class="dr-name"></span><span class="dr-score"></span>';
+      row.querySelector('.dr-rank').textContent = ['🥇', '🥈', '🥉'][i] || `${i + 1}.`;
+      row.querySelector('.dr-name').textContent = String(r.name || '').slice(0, 24);
+      row.querySelector('.dr-score').textContent = fmt(r.score);
+      if (withGhost.has(r.player_id) && r.player_id !== save.playerId) {
+        const b = document.createElement('button');
+        b.className = 'dr-ghost';
+        b.textContent = t('daily.raceGhost');
+        b.addEventListener('click', () => startDailyGhost(r.player_id, r.name));
+        row.append(b);
+      }
+      list.append(row);
+    });
+  }).catch(() => {
+    if (req === dailyReq) setText('daily-status', t('board.error'));
+  });
+}
+
+async function startDailyGhost(pid, name) {
+  setText('daily-status', t('board.loading'));
+  const rep = await Online.dailyReplay(pid, dayKey()).catch(() => null);
+  if (!rep || !Array.isArray(rep.data)) {
+    setText('daily-status', t('board.error'));
+    return;
+  }
+  startDaily({ data: rep.data, name: String(name || rep.name || '').slice(0, 14) });
+}
+
+// Starta dagens åk (valfritt mot ett spöke). Banan byggs från dagens frö, ingen upplåsning behövs.
+function startDaily(ghostRep = null) {
+  leaveJoinedGroup();
+  raceResultText = null;
+  if (race) leaveSession();
+  if (party.hosting) cancelHosting();
+  endDaily();
+  const info = dayInfo();
+  daily = { ...info, rec: [], t: 0, next: 0, prev: { course: save.course, difficulty: save.difficulty }, ghost: null, done: false };
+  save.course = info.course;
+  save.difficulty = 'normal';
+  course = COURSES[info.course];
+  difficulty = DIFFICULTIES.normal;
+  worldRng = mulberry32(info.seed);
+  resetWorld();
+  worldRng = null;
+  daily.rng = mulberry32(info.seed + 1);
+  if (ghostRep) {
+    const mesh = makeNpcMesh();
+    mesh.add(makeNameTag(`👻 ${ghostRep.name}`));
+    mesh.traverse((o) => {
+      if (o.material && !o.isSprite) {
+        o.material = o.material.clone();
+        o.material.transparent = true;
+        o.material.opacity = 0.55;
+      }
+    });
+    daily.ghost = { data: ghostRep.data, mesh };
+  }
+  $('popups').innerHTML = '';
+  wasMenu = true;
+  player.speed = stats().cruise;
+  state = 'playing';
+  showOverlay(null);
+  popup(`🗓️ ${t('daily.title')}`, t(`course.${info.course}`), '#00838f');
+}
+
+// Varje bildruta: spela in mig själv och flytta spöket
+function updateDaily(dt) {
+  if (!daily) return;
+  if (!daily.done) worldRng = daily.rng;
+  if (state !== 'playing' && state !== 'crashing' && state !== 'finish') return;
+  const p = player;
+  if (state === 'playing') {
+    daily.t += dt;
+    if (daily.t >= daily.next) {
+      daily.next += REPLAY_STEP;
+      daily.rec.push(Math.round(p.x * 10), Math.round(p.d * 10), Math.round(p.z * 10), Math.round(p.angle * 100), Math.round(p.spin * 100));
+    }
+  }
+  const g = daily.ghost;
+  if (g) {
+    const n = g.data.length / 5;
+    const f = Math.min(daily.t / REPLAY_STEP, n - 1);
+    const i = Math.floor(f);
+    const k = f - i;
+    const j = Math.min(i + 1, n - 1);
+    const v = (o) => (g.data[i * 5 + o] + (g.data[j * 5 + o] - g.data[i * 5 + o]) * k);
+    const x = v(0) / 10;
+    const d = v(1) / 10;
+    g.mesh.visible = n > 1;
+    g.mesh.position.set(x, groundY(x, d) + v(2) / 10, -d);
+    g.mesh.rotation.set(0, -v(3) / 100 + v(4) / 100, 0);
+  }
+}
+
+// Dagens åk är slut: pengar som vanligt, dagstopplistan och spöket – inte den vanliga topplistan.
+// Banan ligger kvar tills man lämnar resultatet (liften och målet behöver samma terräng).
+function recordDaily() {
+  lastRank = -1;
+  globalRank = null;
+  const dist = Math.min(runLength(), Math.floor(player.d));
+  const total = runScore();
+  save.bank += total;
+  daily.done = true;
+  worldRng = null;
+  const prevBest = myDailyBest();
+  const better = !prevBest || total > prevBest.score;
+  if (better) {
+    save.dailyBest = { day: daily.day, score: total };
+    if (total > 0) save.dailyGhost = { day: daily.day, score: total, data: daily.rec };
+  }
+  persist();
+  dailyResultText = better && prevBest ? t('daily.newBest', { n: fmt(total) }) : better ? t('daily.firstRun', { n: fmt(total) }) : t('daily.best', { n: fmt(prevBest.score) });
+  if (Online.on && total > 0) {
+    const day = daily.day;
+    const rec = daily.rec;
+    Online.submit({ player_id: save.playerId, name: playerName(), score: total, dist, course: daily.course, difficulty: 'normal', rider: save.rider, day })
+      .then((accepted) => (better && accepted ? Online.saveReplay(day, total, playerName(), rec) : null))
+      .catch(() => {});
+  }
+  dailyAgain = true;
+  return { dist, total, record: false };
+}
+
+function endDaily() {
+  if (!daily) return;
+  if (daily.ghost) scene.remove(daily.ghost.mesh);
+  save.course = daily.prev.course;
+  save.difficulty = daily.prev.difficulty;
+  course = COURSES[save.course] || COURSES.classic;
+  difficulty = DIFFICULTIES[save.difficulty] || DIFFICULTIES.normal;
+  daily = null;
+  worldRng = null;
+  persist();
+}
+
+// ---------- Online: party, sessioner med flera spelare och olika spellägen ----------
+// Bygger på Supabase Realtime (presence + broadcast). Lobbyn "ski-lobby" visar vilka som är online och
+// skickar inbjudningar. Varje session har en egen kanal "ski-s-<id>" för start, positioner och resultat.
 const party = {
   on: Online.on,
   client: null, lobby: null, ready: false,
-  players: [],     // andra spelare online
-  pending: null,   // inbjudan jag har skickat { to, raceId, until }
-  incoming: null,  // inbjudan till mig
+  players: [],      // andra spelare online
+  mode: 'race',     // valt spelläge i Online-menyn
+  hosting: null,    // min grupp innan start: { sid, mode, course, difficulty, ch, invited: Map }
+  joined: null,     // gruppen jag gått med i och väntar på start: { sid, host, hostName, mode, ch }
+  incoming: null,   // inbjudan till mig
 };
-let race = null;   // pågående race: { id, opp, seed, course, difficulty, startAt, ch, oppPos, oppDone, myDone, startedAt }
-let ghost = null;  // motståndarens åkare i backen
+// Spellägen: max antal spelare (inklusive mig)
+const PARTY_MODES = {
+  race:    { icon: '🏁', max: 8 },
+  pslalom: { icon: '🚩', max: 2 },
+  duel:    { icon: '🔤', max: 2 },
+  bigair:  { icon: '🚀', max: 4 },
+};
+const EMOTES = ['👏', '🔥', '😂', '😤'];
+const DUEL_WORD = 'SKIDA';
+const BIGAIR_ATTEMPTS = 3;
+// Banor för partylägen (syns inte i menyn)
+const PARTY_COURSES = {
+  pslalom: { ...COURSES.slalom, netX: 26, density: 0, pslalom: true, weights: { star: 0 } },
+  duel: { ...COURSES.park, netX: 14, density: 0, waves: [], bumps: 0, weights: { star: 0 } },
+  bigair: { ...COURSES.bigair, density: 0, weights: { star: 0 } },
+};
+const LANE_X = 12; // parallellslalom: banornas mitt på var sin sida
+
+let race = null;   // pågående session (se beginSession)
+let lastSession = null; // senaste avslutade sessionen, för revansch och emojis
 const RACE_COUNTDOWN = 4000;
+const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+const sessionBusy = () => !!(race || party.hosting || party.joined || party.incoming || tutorial || daily);
 
 function partyMe() {
   const ch = currentCharacter();
-  const status = race ? 'race' : state === 'playing' || state === 'crashing' || state === 'finish' || state === 'lift' ? 'riding' : 'menu';
+  const status = race || party.joined ? 'race' : ['menu', 'shop', 'gameover'].includes(state) ? 'menu' : 'riding';
   return { id: save.playerId, name: playerName(), icon: ch.icon, status, course: save.course };
 }
 
@@ -6134,9 +6455,6 @@ async function partyConnect() {
       .on('presence', { event: 'sync' }, partySync)
       .on('broadcast', { event: 'invite' }, ({ payload }) => onInvite(payload))
       .on('broadcast', { event: 'reply' }, ({ payload }) => onReply(payload))
-      .on('broadcast', { event: 'cancel' }, ({ payload }) => {
-        if (payload.to === save.playerId && race && race.id === payload.raceId && !race.startedAt) abortRace();
-      })
       .subscribe((status) => {
         party.ready = status === 'SUBSCRIBED';
         if (party.ready) partyTrack(true);
@@ -6147,7 +6465,7 @@ async function partyConnect() {
   }
 }
 
-// Uppdatera min status (meny/åker/race) – högst en gång per sekund om inget ändrats
+// Uppdatera min status (meny/åker/race) när den ändras
 let lastTrack = '';
 function partyTrack(force = false) {
   if (!party.ready) return;
@@ -6158,17 +6476,23 @@ function partyTrack(force = false) {
   party.lobby.track(me);
 }
 
+const onlineIds = () => new Set(party.players.map((p) => p.id));
+
 function partySync() {
   const state0 = party.lobby.presenceState();
   party.players = Object.values(state0).map((list) => list[0]).filter((p) => p && p.id !== save.playerId);
-  // Motståndaren har lämnat mitt i ett race
-  if (race && !race.oppDone && !party.players.some((p) => p.id === race.opp.id)) {
-    if (!race.startedAt) {
-      abortRace(); // försvann under nedräkningen
-    } else {
-      race.oppDone = { left: true, dist: 0, finished: false };
-      renderRaceResult();
+  const ids = onlineIds();
+  // Någon i sessionen har stängt spelet
+  // Någon saknas i listan: räkna som borta först efter 6 s (korta avbrott i nätet ska inte avgöra något)
+  if (race) {
+    for (const [id, o] of race.others) {
+      if (ids.has(id)) o.missingSince = 0;
+      else if (!o.left && !o.missingSince) o.missingSince = performance.now();
     }
+  }
+  if (party.joined && !ids.has(party.joined.host)) leaveLobbyGroup('party.cancelled', party.joined.hostName);
+  if (party.hosting) {
+    for (const [id, m] of party.hosting.invited) if (m.status !== 'gone' && !ids.has(id)) m.status = 'gone';
   }
   renderParty();
 }
@@ -6180,27 +6504,85 @@ function showParty() {
   renderParty();
 }
 
+function setPartyMode(mode) {
+  if (party.hosting) return Sound.denied(); // gruppen är redan inbjuden till ett läge
+  party.mode = mode;
+  renderParty();
+}
+
 function renderParty() {
   if ($('party').classList.contains('hidden')) return;
-  const list = $('party-list');
-  list.innerHTML = '';
   const status = !party.on ? t('party.offline') : !party.ready ? t('party.connecting') : '';
   setText('party-status', status);
   $('party-status').classList.toggle('hidden', !status);
   setText('party-me', party.ready ? t('party.me', { name: playerName(), course: t(`course.${save.course}`) }) : '');
-  for (const p of party.players) {
+  // Spelläge
+  for (const b of $('party-modes').children) {
+    b.classList.toggle('active', b.dataset.mode === party.mode);
+    b.setAttribute('aria-disabled', String(!!party.hosting && b.dataset.mode !== party.mode));
+  }
+  setText('party-mode-desc', t(`mode.${party.mode}.desc`, { n: PARTY_MODES[party.mode].max }));
+  // Min grupp (som värd) eller väntan på start (som inbjuden)
+  const box = $('party-group');
+  box.innerHTML = '';
+  box.classList.toggle('hidden', !party.hosting && !party.joined);
+  if (party.hosting) {
+    const h = party.hosting;
+    const title = document.createElement('div');
+    title.className = 'group-title';
+    title.textContent = `${PARTY_MODES[h.mode].icon} ${t(`mode.${h.mode}`)}`;
+    box.append(title);
+    for (const [, m] of h.invited) {
+      const row = document.createElement('div');
+      row.className = `group-row g-${m.status}`;
+      row.textContent = `${m.name} · ${t(`group.${m.status}`)}`;
+      box.append(row);
+    }
+    const btns = document.createElement('div');
+    btns.className = 'group-btns';
+    const start = document.createElement('button');
+    start.className = 'primary';
+    const ready = [...h.invited.values()].filter((m) => m.status === 'joined').length;
+    start.textContent = t('group.start', { n: ready + 1 });
+    start.setAttribute('aria-disabled', String(ready === 0));
+    start.addEventListener('click', () => (ready ? startSession() : Sound.denied()));
+    const cancel = document.createElement('button');
+    cancel.textContent = t('group.cancel');
+    cancel.addEventListener('click', cancelHosting);
+    btns.append(cancel, start);
+    box.append(btns);
+  } else if (party.joined) {
+    const j = party.joined;
     const row = document.createElement('div');
-    row.className = `party-row st-${['menu', 'riding', 'race'].includes(p.status) ? p.status : 'menu'}`;
-    const waiting = party.pending && party.pending.to === p.id;
+    row.className = 'group-title';
+    row.textContent = `${PARTY_MODES[j.mode].icon} ${t('group.waitHost', { name: j.hostName, mode: t(`mode.${j.mode}`) })}`;
+    const leave = document.createElement('button');
+    leave.textContent = t('group.leave');
+    leave.addEventListener('click', () => {
+      j.ch.send({ type: 'broadcast', event: 'leave', payload: { id: save.playerId } });
+      leaveLobbyGroup();
+    });
+    box.append(row, leave);
+  }
+  // Spelare online
+  const list = $('party-list');
+  list.innerHTML = '';
+  const max = PARTY_MODES[party.mode].max;
+  const invitedCount = party.hosting ? [...party.hosting.invited.values()].filter((m) => m.status === 'invited' || m.status === 'joined').length : 0;
+  for (const p of party.players) {
+    const st = ['menu', 'riding', 'race'].includes(p.status) ? p.status : 'menu';
+    const row = document.createElement('div');
+    row.className = `party-row st-${st}`;
     // Allt från andra spelare sätts som text, aldrig som HTML
     row.innerHTML = '<span class="party-ico"></span><span class="party-name"></span><span class="party-st"></span>';
     row.querySelector('.party-ico').textContent = String(p.icon || '⛷️').slice(0, 8);
     row.querySelector('.party-name').textContent = String(p.name || '').slice(0, 24);
-    row.querySelector('.party-st').textContent = ['menu', 'riding', 'race'].includes(p.status) ? t(`party.st.${p.status}`) : '';
+    row.querySelector('.party-st').textContent = t(`party.st.${st}`);
     const btn = document.createElement('button');
     btn.className = 'party-invite';
-    btn.textContent = waiting ? t('party.waiting') : t('party.invite');
-    const busy = p.status !== 'menu' || !!party.pending || !!race;
+    const already = party.hosting && party.hosting.invited.has(p.id) && ['invited', 'joined'].includes(party.hosting.invited.get(p.id).status);
+    btn.textContent = already ? t('party.waiting') : t('party.invite');
+    const busy = st !== 'menu' || already || !!race || !!party.joined || invitedCount + 1 >= max;
     btn.setAttribute('aria-disabled', String(busy));
     btn.addEventListener('click', () => (busy ? Sound.denied() : sendInvite(p)));
     row.append(btn);
@@ -6209,32 +6591,98 @@ function renderParty() {
   $('party-empty').classList.toggle('hidden', !party.ready || party.players.length > 0);
 }
 
+// Gemensam sessionskanal: samma hanterare för värd och inbjudna
+function openSessionChannel(sid, onReady) {
+  const ch = party.client.channel(`ski-s-${sid}`, { config: { private: true, broadcast: { self: false } } });
+  const mine = (fn) => ({ payload }) => {
+    if (race && race.id === sid) fn(payload);
+  };
+  ch.on('broadcast', { event: 'start' }, ({ payload }) => {
+    if (!party.joined || party.joined.sid !== sid) return;
+    // Har börjat göra något annat: lämna i stället för att dras in
+    if (!['menu', 'shop', 'gameover'].includes(state) || daily || tutorial) return leaveJoinedGroup();
+    beginSession(payload);
+  })
+    .on('broadcast', { event: 'cancel' }, () => {
+      if (party.joined && party.joined.sid === sid) leaveLobbyGroup('party.cancelled', party.joined.hostName);
+    })
+    .on('broadcast', { event: 'leave' }, ({ payload }) => {
+      if (party.hosting && party.hosting.sid === sid && party.hosting.invited.has(payload.id)) {
+        party.hosting.invited.get(payload.id).status = 'gone';
+        renderParty();
+      }
+      if (race && race.id === sid) memberLeft(payload.id);
+    })
+    .on('broadcast', { event: 'pos' }, mine((m) => { const o = race.others.get(m.id); if (o) o.pos = m; }))
+    .on('broadcast', { event: 'done' }, mine((m) => { const o = race.others.get(m.id); if (o) { o.done = m; checkSessionEnd(); } }))
+    .on('broadcast', { event: 'trick' }, mine((m) => applyDuel(m.id, m.sig, m.landed, m.turn)))
+    .on('broadcast', { event: 'attempt' }, mine((m) => bigairScore(m.id, m.n, m.score)))
+    .on('broadcast', { event: 'emote' }, ({ payload }) => showEmote(payload.id, payload.e))
+    .subscribe((status) => { if (status === 'SUBSCRIBED' && onReady) onReady(); });
+  return ch;
+}
+
 function sendInvite(p) {
-  const raceId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
-  party.pending = { to: p.id, name: p.name, raceId, course: save.course, difficulty: save.difficulty, seed: Math.floor(Math.random() * 2 ** 31) };
-  party.lobby.send({ type: 'broadcast', event: 'invite', payload: { ...party.pending, from: save.playerId, fromName: playerName() } });
+  // Första inbjudan: skapa gruppen och dess kanal
+  if (!party.hosting) {
+    const sid = newId();
+    party.hosting = { sid, mode: party.mode, course: save.course, difficulty: save.difficulty, invited: new Map() };
+    party.hosting.ch = openSessionChannel(sid);
+  }
+  const h = party.hosting;
+  h.invited.set(p.id, { name: String(p.name || '').slice(0, 24), status: 'invited' });
+  party.lobby.send({ type: 'broadcast', event: 'invite', payload: { to: p.id, from: save.playerId, fromName: playerName(), sid: h.sid, mode: h.mode, course: h.course, difficulty: h.difficulty } });
   Sound.click();
   renderParty();
-  // Inget svar inom 20 s: ge upp
+  // Inget svar inom 20 s
   setTimeout(() => {
-    if (party.pending && party.pending.raceId === raceId) {
-      party.pending = null;
-      popup(`👥 ${t('party.noAnswer', { name: p.name })}`, '', '#5d4037');
+    const m = party.hosting && party.hosting.sid === h.sid && h.invited.get(p.id);
+    if (m && m.status === 'invited') {
+      m.status = 'noanswer';
       renderParty();
     }
   }, 20000);
 }
 
+function cancelHosting() {
+  const h = party.hosting;
+  if (!h) return;
+  h.ch.send({ type: 'broadcast', event: 'cancel', payload: {} });
+  party.hosting = null;
+  setTimeout(() => party.client.removeChannel(h.ch), 1000);
+  renderParty();
+  partyTrack(true);
+}
+
+// Jag väntade i en grupp men började göra något annat: säg till värden och lämna
+function leaveJoinedGroup() {
+  if (!party.joined || race) return;
+  party.joined.ch.send({ type: 'broadcast', event: 'leave', payload: { id: save.playerId } });
+  leaveLobbyGroup();
+}
+
+// Lämna gruppen jag väntade i (eller värden avbröt)
+function leaveLobbyGroup(msgKey, name) {
+  const j = party.joined;
+  if (!j) return;
+  party.joined = null;
+  setTimeout(() => party.client.removeChannel(j.ch), 1000);
+  if (msgKey) popup(`👥 ${t(msgKey, { name })}`, '', '#5d4037');
+  renderParty();
+  partyTrack(true);
+}
+
 function onInvite(inv) {
-  if (inv.to !== save.playerId) return;
-  // Upptagen (åker, i liften, i tutorialen eller redan i ett race), eller banan är låst: tacka nej direkt
-  const locked = !courseUnlocked(inv.course);
-  if (race || party.incoming || tutorial || state !== 'menu' || locked) {
-    party.lobby.send({ type: 'broadcast', event: 'reply', payload: { to: inv.from, from: save.playerId, raceId: inv.raceId, ok: false, locked } });
+  if (inv.to !== save.playerId || !PARTY_MODES[inv.mode]) return;
+  // Upptagen eller (i race-läget) låst bana: tacka nej direkt
+  const locked = inv.mode === 'race' && !courseUnlocked(inv.course);
+  if (sessionBusy() || !['menu', 'shop', 'gameover'].includes(state) || locked) {
+    party.lobby.send({ type: 'broadcast', event: 'reply', payload: { to: inv.from, from: save.playerId, sid: inv.sid, ok: false, locked } });
     return;
   }
   party.incoming = inv;
-  setText('invite-text', t('party.invited', { name: inv.fromName, course: t(`course.${inv.course}`) }));
+  const where = inv.mode === 'race' ? t(`course.${inv.course}`) : t(`mode.${inv.mode}`);
+  setText('invite-text', t(inv.mode === 'race' ? 'party.invited' : 'party.invitedMode', { name: String(inv.fromName).slice(0, 24), course: where }));
   $('invite-toast').classList.remove('hidden');
   Sound.combo(3);
   setTimeout(() => { if (party.incoming === inv) answerInvite(false); }, 20000);
@@ -6243,62 +6691,149 @@ function onInvite(inv) {
 function answerInvite(ok) {
   const inv = party.incoming;
   if (!inv) return;
-  if (state !== 'menu' || tutorial || race) ok = false; // har börjat åka sedan inbjudan kom
   party.incoming = null;
   $('invite-toast').classList.add('hidden');
-  party.lobby.send({ type: 'broadcast', event: 'reply', payload: { to: inv.from, from: save.playerId, raceId: inv.raceId, ok } });
-  if (ok) beginRace({ id: inv.raceId, opp: { id: inv.from, name: inv.fromName }, seed: inv.seed, course: inv.course, difficulty: inv.difficulty });
+  if (!['menu', 'shop', 'gameover'].includes(state) || race || party.hosting || party.joined || tutorial || daily) ok = false; // har börjat göra annat
+  const reply = (yes) => party.lobby.send({ type: 'broadcast', event: 'reply', payload: { to: inv.from, from: save.playerId, sid: inv.sid, ok: yes } });
+  if (!ok) return reply(false);
+  // Gå med i gruppens kanal först, svara sedan – då missar jag inte startsignalen
+  party.joined = { sid: inv.sid, host: inv.from, hostName: String(inv.fromName).slice(0, 24), mode: inv.mode };
+  party.joined.ch = openSessionChannel(inv.sid, () => reply(true));
+  showParty();
+  partyTrack(true);
 }
 
 function onReply(r) {
   if (r.to !== save.playerId) return;
-  const inv = party.pending;
-  const busy = state !== 'menu' || !!tutorial || !!race;
-  // Svar på en inbjudan som har gått ut, eller när jag redan åker: säg till den andra att racet inte blir av
-  if (!inv || inv.raceId !== r.raceId || busy) {
-    if (r.ok) party.lobby.send({ type: 'broadcast', event: 'cancel', payload: { to: r.from, raceId: r.raceId } });
-    if (inv && inv.raceId === r.raceId) party.pending = null;
+  const h = party.hosting;
+  const m = h && h.sid === r.sid && h.invited.get(r.from);
+  if (!m) {
+    // Svar till en grupp som inte finns längre: säg till att den är avbruten
+    if (r.ok) {
+      const ch = party.client.channel(`ski-s-${r.sid}`, { config: { private: true, broadcast: { self: false } } });
+      ch.subscribe((st) => {
+        if (st !== 'SUBSCRIBED') return;
+        ch.send({ type: 'broadcast', event: 'cancel', payload: {} });
+        setTimeout(() => party.client.removeChannel(ch), 1000);
+      });
+    }
     return;
   }
-  party.pending = null;
-  if (!r.ok) {
-    popup(`👥 ${t(r.locked ? 'party.locked' : 'party.declined', { name: inv.name })}`, '', '#5d4037');
-    renderParty();
-    return;
-  }
-  beginRace({ id: inv.raceId, opp: { id: inv.to, name: inv.name }, seed: inv.seed, course: inv.course, difficulty: inv.difficulty });
+  if (m.status !== 'invited' && m.status !== 'noanswer') return;
+  m.status = r.ok ? 'joined' : r.locked ? 'locked' : 'declined';
+  if (r.ok) Sound.click();
+  renderParty();
 }
 
-// Båda startar samtidigt: banan byggs från fröet och en nedräkning visas
-function beginRace({ id, opp, seed, course: courseId, difficulty: diffId }) {
-  party.pending = null;
-  race = { id, opp, seed, course: courseId, difficulty: diffId, startAt: performance.now() + RACE_COUNTDOWN, oppPos: null, oppDone: null, myDone: null, startedAt: 0, sent: 0, prev: { course: save.course, difficulty: save.difficulty } };
-  race.ch = party.client.channel(`ski-race-${id}`, { config: { private: true, broadcast: { self: false } } });
-  race.ch
-    .on('broadcast', { event: 'pos' }, ({ payload }) => { if (race && race.id === id) race.oppPos = payload; })
-    .on('broadcast', { event: 'done' }, ({ payload }) => {
-      if (!race || race.id !== id) return;
-      race.oppDone = payload;
-      renderRaceResult();
-    })
-    .subscribe();
-  save.course = COURSES[courseId] ? courseId : 'classic';
-  course = COURSES[save.course];
-  save.difficulty = DIFFICULTIES[diffId] ? diffId : 'normal';
-  difficulty = DIFFICULTIES[save.difficulty];
-  worldRng = mulberry32(seed);
-  resetWorld();
+// Värden startar: alla som gått med får samma frö och samma lista över spelare
+function startSession() {
+  const h = party.hosting;
+  if (!h || !['menu', 'shop', 'gameover'].includes(state)) return;
+  const members = [{ id: save.playerId, name: playerName() }];
+  for (const [id, m] of h.invited) if (m.status === 'joined') members.push({ id, name: m.name });
+  if (members.length < 2) return Sound.denied();
+  const start = { sid: h.sid, mode: h.mode, course: h.course, difficulty: h.difficulty, seed: Math.floor(Math.random() * 2 ** 31), members, host: save.playerId };
+  h.ch.send({ type: 'broadcast', event: 'start', payload: start });
+  party.joined = { ch: h.ch, sid: h.sid };
+  party.hosting = null;
+  beginSession(start);
+}
+
+// Bygg sessionens värld från fröet: samma bana för alla
+function buildSessionWorld() {
+  const r = race;
+  worldRng = mulberry32(r.seed);
+  if (r.mode === 'race') {
+    course = COURSES[r.course] || COURSES.classic;
+    resetWorld();
+  } else if (r.mode === 'pslalom') {
+    course = PARTY_COURSES.pslalom;
+    resetWorld();
+  } else {
+    // Trick-duell och Big Air-tävling: ett enda hopp, samma för alla
+    course = PARTY_COURSES[r.mode];
+    resetWorld();
+    objects.forEach(removeObject);
+    objects = [];
+    features = [];
+    nextSpawnD = 1e9;
+    nextMegaD = 1e9;
+    nextGateD = 1e9;
+    const rampType = OBSTACLES.find((o) => o.type === 'ramp');
+    const size = r.mode === 'duel' ? 3 : RAMPS.length - 1;
+    const real = course;
+    course = { ...real, rampSizes: RAMPS.map((_, i) => (i === size ? 1 : 0)) };
+    const o = makeObject(rampType, 0, 70);
+    course = real;
+    objects.push(o);
+    r.kickD = o.d;
+    r.endD = (o.feature ? o.feature.d3 : o.d + 60) + 6;
+  }
   worldRng = null;
-  race.rng = mulberry32(seed + 1);
+  r.rng = mulberry32(r.seed + 1);
+  if (r.mode === 'pslalom') {
+    player.x = (r.lane === 0 ? -1 : 1) * LANE_X;
+    buildLaneDivider();
+  }
+  player.speed = stats().cruise;
+  if (r.mode === 'duel' || r.mode === 'bigair') player.lives = 99; // en krasch avslutar bara försöket
+}
+
+function beginSession(start) {
+  if (race) return;
+  const others = new Map();
+  for (const m of start.members) {
+    if (m.id === save.playerId) continue;
+    const mesh = makeNpcMesh();
+    mesh.add(makeNameTag(String(m.name).slice(0, 14)));
+    mesh.visible = false;
+    others.set(m.id, { name: String(m.name).slice(0, 24), pos: null, done: null, left: false, mesh, attempts: [] });
+  }
+  const ch = party.joined ? party.joined.ch : null;
+  party.joined = null;
+  party.incoming = null;
+  $('invite-toast').classList.add('hidden');
+  race = {
+    id: start.sid, mode: start.mode, seed: start.seed, course: start.course, difficulty: start.difficulty,
+    members: start.members, others, ch, host: start.host, myDone: null, startedAt: 0, sent: 0,
+    startAt: performance.now() + RACE_COUNTDOWN,
+    lane: start.members.findIndex((m) => m.id === save.playerId) === 0 ? 0 : 1,
+    prev: { course: save.course, difficulty: save.difficulty },
+    attempts: [], attempt: null, duel: null,
+  };
+  // Race och parallellslalom räknas som vanliga åk på den banan
+  if (race.mode === 'race' || race.mode === 'pslalom') {
+    save.course = race.mode === 'pslalom' ? 'slalom' : COURSES[race.course] ? race.course : 'classic';
+    save.difficulty = DIFFICULTIES[race.difficulty] ? race.difficulty : 'normal';
+  } else {
+    save.difficulty = 'normal';
+  }
+  difficulty = DIFFICULTIES[save.difficulty];
+  if (race.mode === 'duel') {
+    const letters = {};
+    for (const m of race.members) letters[m.id] = 0;
+    race.duel = { setter: race.host, active: race.host, phase: 'set', trick: null, letters, msg: '', turn: 0 };
+  }
+  buildSessionWorld();
   $('popups').innerHTML = '';
   wasMenu = true;
-  player.speed = stats().cruise;
-  state = 'countdown';
   showOverlay(null);
-  $('countdown').classList.remove('hidden');
-  ghost = makeNpcMesh();
-  ghost.add(makeNameTag(opp.name));
+  if (race.mode === 'duel' && race.duel.active !== save.playerId) enterSpectate();
+  else startCountdown(RACE_COUNTDOWN);
   partyTrack(true);
+}
+
+function startCountdown(ms) {
+  race.startAt = performance.now() + ms;
+  state = 'countdown';
+  $('countdown').classList.remove('hidden');
+}
+
+// Väntar på min tur: stå still vid starten och titta på de andra
+function enterSpectate() {
+  state = 'spectate';
+  player.speed = 0;
+  $('countdown').classList.add('hidden');
 }
 
 // Nedräkning 3-2-1-KÖR
@@ -6312,50 +6847,81 @@ function updateCountdown() {
   }
   if (left <= 0) {
     state = 'playing';
-    race.startedAt = performance.now();
+    if (race) {
+      race.startedAt = performance.now();
+      if (race.mode === 'duel' || race.mode === 'bigair') race.attempt = { crashed: false, combo: null, maxZ: 0 };
+    }
     Sound.combo(4);
     setTimeout(() => $('countdown').classList.add('hidden'), 600);
   }
 }
 
-// Under racet: skicka min position 10 ggr/s och flytta motståndarens åkare
+// Varje bildruta: skicka min position, flytta de andras åkare, kolla försök i minilägena
 function updateRace(dt) {
-  // Världen fortsätter att genereras från samma frö under hela racet
-  if (race && !race.myDone) worldRng = race.rng;
+  if (race && !race.myDone && (race.mode === 'race' || race.mode === 'pslalom')) worldRng = race.rng;
+  const hud = $('race-hud');
   if (!race) {
-    $('race-hud').classList.add('hidden');
+    hud.classList.add('hidden');
+    const results = !$('gameover').classList.contains('hidden') || !$('sessres').classList.contains('hidden');
+    $('emote-bar').classList.toggle('hidden', !(lastSession && results));
     return;
   }
   const p = player;
   const now = performance.now();
-  if (state === 'playing' && now - race.sent > 100) {
+  for (const [id, o] of race.others) if (o.missingSince && now - o.missingSince > 6000 && !o.left) memberLeft(id);
+  if (!race) return;
+  // Färre positionsmeddelanden när många är med (gratisnivåns gränser)
+  const every = race.members.length > 4 ? 250 : race.members.length > 2 ? 150 : 100;
+  if (state === 'playing' && now - race.sent > every) {
     race.sent = now;
-    race.ch.send({ type: 'broadcast', event: 'pos', payload: { x: p.x, d: p.d, z: p.z, a: p.angle, air: p.air, spin: p.spin } });
+    race.ch.send({ type: 'broadcast', event: 'pos', payload: { id: save.playerId, x: p.x, d: p.d, z: p.z, a: p.angle, spin: p.spin } });
   }
-  const o = race.oppPos;
-  if (ghost && o) {
-    // Mjuk förflyttning mot senast kända position
-    const gx = ghost.userData.x ?? o.x;
-    const gd = ghost.userData.d ?? o.d;
-    const k = smooth(10, dt);
-    ghost.userData.x = gx + (o.x - gx) * k;
-    ghost.userData.d = gd + (o.d - gd) * k;
-    const x = ghost.userData.x;
-    const d = ghost.userData.d;
-    ghost.position.set(x, groundY(x, d) + (o.z || 0), -d);
-    ghost.rotation.set(0, -o.a + (o.spin || 0), 0);
-    ghost.visible = !race.oppDone || !race.oppDone.left;
+  for (const [, o] of race.others) {
+    const m = o.mesh;
+    const q = o.pos;
+    m.visible = !!q && !o.left;
+    if (!q) continue;
+    // Mjuk förflyttning mot senast kända position (hoppa direkt vid stora språng, t.ex. nytt försök)
+    const far = m.userData.d === undefined || Math.abs(q.d - m.userData.d) > 30;
+    const k = far ? 1 : smooth(10, dt);
+    m.userData.x = far ? q.x : m.userData.x + (q.x - m.userData.x) * k;
+    m.userData.d = far ? q.d : m.userData.d + (q.d - m.userData.d) * k;
+    m.position.set(m.userData.x, groundY(m.userData.x, m.userData.d) + (q.z || 0), -m.userData.d);
+    m.rotation.set(0, -q.a + (q.spin || 0), 0);
   }
-  const hud = $('race-hud');
-  const playing = state === 'playing' || state === 'countdown' || state === 'crashing' || state === 'finish';
+  // Försök i trick-duell och Big Air-tävling: slut när man passerat landningen
+  const at = race.attempt;
+  if (at && state === 'playing') {
+    at.maxZ = Math.max(at.maxZ, p.air ? p.z : 0);
+    if (p.d > race.endD) endAttempt();
+  }
+  const playing = ['playing', 'countdown', 'crashing', 'finish', 'spectate'].includes(state);
   hud.classList.toggle('hidden', !playing);
-  if (playing) {
-    const diff = o ? Math.round(p.d - o.d) : 0;
-    setText('race-hud', `🆚 ${race.opp.name} · ${o ? fmt(Math.max(0, Math.round(o.d))) : 0} m (${diff >= 0 ? '+' : ''}${diff} m)`);
-  }
+  $('emote-bar').classList.toggle('hidden', !(playing || !$('gameover').classList.contains('hidden')));
+  if (playing) setText('race-hud', sessionHudText());
 }
 
-// Namnskylt ovanför motståndaren
+function sessionHudText() {
+  const r = race;
+  if (r.mode === 'duel') {
+    const d = r.duel;
+    const letters = r.members.map((m) => `${m.id === save.playerId ? t('party.you') : m.name}: ${DUEL_WORD.slice(0, d.letters[m.id]) || '–'}`).join(' · ');
+    return `🔤 ${letters}${d.msg ? `\n${d.msg}` : ''}`;
+  }
+  if (r.mode === 'bigair') {
+    const row = (name, list) => `${name}: ${[0, 1, 2].map((i) => (list[i] === undefined ? '–' : fmt(list[i]))).join(' / ')}`;
+    return `🚀 ${[row(t('party.you'), r.attempts), ...[...r.others.values()].map((o) => row(o.name, o.attempts))].join('\n')}`;
+  }
+  // Race och parallellslalom: avstånd till de andra
+  const p = player;
+  const parts = [...r.others.values()].filter((o) => o.pos && !o.left).sort((a, b) => b.pos.d - a.pos.d).slice(0, 3).map((o) => {
+    const diff = Math.round(p.d - o.pos.d);
+    return `${o.name} ${diff >= 0 ? '+' : ''}${diff} m`;
+  });
+  return `🆚 ${parts.join(' · ') || '…'}`;
+}
+
+// Namnskylt ovanför en annan spelare
 function makeNameTag(name) {
   const c = document.createElement('canvas');
   c.width = 256;
@@ -6376,96 +6942,380 @@ function makeNameTag(name) {
   return sprite;
 }
 
-// Mitt åk är slut (mål eller krasch): berätta det för motståndaren
+// Parallellslalom: stolpar i mitten som skiljer banorna åt
+let laneDivider = null;
+function buildLaneDivider() {
+  removeLaneDivider();
+  const n = Math.ceil(runLength() / 8);
+  const mesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 6).translate(0, 0.6, 0), new THREE.MeshLambertMaterial({ color: '#1565c0' }), n);
+  for (let i = 0; i < n; i++) {
+    const d = i * 8;
+    dummy.position.set(0, groundY(0, d), -d);
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.setScalar(1);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  }
+  scene.add(mesh);
+  laneDivider = mesh;
+}
+function removeLaneDivider() {
+  if (laneDivider) scene.remove(laneDivider);
+  laneDivider = null;
+}
+
+// ---------- Trick-duell och Big Air-tävling: försök ----------
+
+// Första landade tricket efter kickern räknas
+function partyCombo(c, pts) {
+  const at = race && race.attempt;
+  if (!at || at.combo || player.d < race.kickD - 2) return;
+  at.combo = { sig: (c.sig || []).slice(), pts };
+}
+
+function partyCrash() {
+  if (race && race.attempt) race.attempt.crashed = true;
+}
+
+// Tricket som en jämförbar lista: snurr, volter och grabs – samma på alla språk
+function trickSig(combo) {
+  return combo ? [...new Set(combo.sig)].filter((s) => /^(spin\d+|back\d+|front\d+|grab-[a-z]+)$/.test(s)).sort() : [];
+}
+
+// Tricket i text på mitt språk, t.ex. "360 + Dubbel backflip + Indy grab"
+function sigLabel(sig) {
+  return sig.map((s) => {
+    let m = s.match(/^spin(\d+)$/);
+    if (m) return m[1];
+    m = s.match(/^(back|front)(\d+)$/);
+    if (m) {
+      const n = Number(m[2]);
+      const base = m[1] === 'back' ? 'Backflip' : 'Frontflip';
+      return n === 1 ? base : n === 2 ? t(m[1] === 'back' ? 'trick.doubleBackflip' : 'trick.doubleFrontflip') : `${n}x ${base.toLowerCase()}`;
+    }
+    const g = GRABS.find((x) => `grab-${x.id}` === s);
+    return g ? g.name : s;
+  }).join(' + ');
+}
+
+function endAttempt() {
+  const r = race;
+  const at = r.attempt;
+  r.attempt = null;
+  finishCombo();
+  if (r.mode === 'duel') {
+    const sig = trickSig(at.combo);
+    const landed = !at.crashed && sig.length > 0;
+    sendReliable(r, 'trick', { id: save.playerId, sig, landed, turn: r.duel.turn });
+    enterSpectate();
+    applyDuel(save.playerId, sig, landed, r.duel.turn);
+  } else {
+    const score = at.crashed ? 0 : Math.round((at.combo ? at.combo.pts : 0) + at.maxZ * 15);
+    const n = r.attempts.length;
+    r.attempts.push(score);
+    sendReliable(r, 'attempt', { id: save.playerId, n, score });
+    enterSpectate();
+    popup(`🚀 ${t('bigair.attempt', { n: n + 1 })}`, `${fmt(score)}`, '#6a1b9a');
+    if (r.attempts.length < BIGAIR_ATTEMPTS) {
+      setTimeout(() => {
+        if (race !== r) return;
+        buildSessionWorld();
+        startCountdown(3000);
+      }, 1500);
+    } else {
+      r.myDone = { attempts: r.attempts };
+      buildSessionWorld();
+      enterSpectate();
+      checkSessionEnd();
+    }
+  }
+}
+
+// Trick-duell: samma regler på båda klienterna, så de kommer fram till samma läge
+function applyDuel(id, sig, landed, turn) {
+  const r = race;
+  const d = r && r.duel;
+  // Varje drag har ett nummer: dubbletter (omsändningar) och gamla drag ignoreras
+  if (!d || id !== d.active || r.over || turn !== d.turn) return;
+  d.turn += 1;
+  sig = Array.isArray(sig) ? sig.map(String).slice(0, 8) : [];
+  const other = (x) => r.members.find((m) => m.id !== x).id;
+  const name = (x) => (x === save.playerId ? t('party.you') : r.members.find((m) => m.id === x).name);
+  if (d.phase === 'set') {
+    if (landed) {
+      d.trick = sig;
+      d.phase = 'match';
+      d.active = other(id);
+      d.msg = t('duel.match', { trick: sigLabel(sig) });
+    } else {
+      d.setter = other(id);
+      d.active = d.setter;
+      d.msg = t('duel.missedSet', { name: name(id) });
+    }
+  } else {
+    const ok = landed && d.trick.every((s) => sig.includes(s));
+    if (!ok) d.letters[id] += 1;
+    d.msg = ok ? t('duel.matched', { name: name(id) }) : t('duel.letter', { name: name(id), letter: DUEL_WORD[d.letters[id] - 1] });
+    d.phase = 'set';
+    d.trick = null;
+    d.active = d.setter;
+    if (d.letters[id] >= DUEL_WORD.length) {
+      r.over = true;
+      finishSession([other(id), id]);
+      return;
+    }
+  }
+  popup(`🔤 ${d.msg}`, '', '#00695c');
+  // Min tur: nytt försök. Annars titta på.
+  setTimeout(() => {
+    if (race !== r || r.over) return;
+    buildSessionWorld();
+    if (d.active === save.playerId) startCountdown(3000);
+    else enterSpectate();
+  }, 1800);
+}
+
+function bigairScore(id, n, score) {
+  const o = race.others.get(id);
+  if (!o) return;
+  o.attempts[n] = Math.max(0, Math.round(Number(score) || 0));
+  if (o.attempts.length >= BIGAIR_ATTEMPTS) o.done = { attempts: o.attempts };
+  checkSessionEnd();
+}
+
+// Viktiga meddelanden skickas tre gånger (de är gjorda så att dubbletter inte gör något)
+function sendReliable(r, event, payload) {
+  for (const ms of [0, 500, 1500]) {
+    setTimeout(() => {
+      if (r.ch) r.ch.send({ type: 'broadcast', event, payload });
+    }, ms);
+  }
+}
+
+// ---------- Slut på sessionen ----------
+
+// Mitt åk är slut (race och parallellslalom): berätta det för de andra
 function raceDone(dist, score, finished) {
-  if (!race || race.myDone) return;
+  if (!race || race.myDone || (race.mode !== 'race' && race.mode !== 'pslalom')) return;
   worldRng = null;
   const time = race.startedAt ? (performance.now() - race.startedAt) / 1000 : 0;
   race.myDone = { dist, score, finished, time };
-  race.ch.send({ type: 'broadcast', event: 'done', payload: race.myDone });
+  sendReliable(race, 'done', { id: save.playerId, ...race.myDone });
   partyTrack(true);
-  if (race.oppDone) renderRaceResult(); // motståndaren var redan klar: avgör direkt (liften visar inga resultat)
+  checkSessionEnd();
 }
 
-// Vem vann? I mål slår inte i mål, snabbast tid vinner, annars längst sträcka
-function raceWinner() {
-  const a = race.myDone;
-  const b = race.oppDone;
-  if (!a || !b) return null;
-  if (b.left) return 'me';
-  if (a.finished !== b.finished) return a.finished ? 'me' : 'opp';
-  // Exakt lika: spelar-id avgör så att båda klienterna kommer fram till samma vinnare
-  const tie = save.playerId < race.opp.id ? 'me' : 'opp';
-  if (a.finished) return a.time === b.time ? tie : a.time < b.time ? 'me' : 'opp';
-  return a.dist === b.dist ? tie : a.dist > b.dist ? 'me' : 'opp';
-}
-
-let raceResultText = null; // senaste resultatet, visas på resultatskärmen även om racet redan är avgjort
-function renderRaceResult() {
-  const el = $('go-race');
-  if (!race || !race.myDone) {
-    el.classList.toggle('hidden', !raceResultText);
-    if (raceResultText) {
-      el.textContent = raceResultText.text;
-      el.className = `rank race-res race-${raceResultText.w}`;
-      raceResultText = null;
-    }
+function memberLeft(id) {
+  const o = race && race.others.get(id);
+  if (!o || o.left) return;
+  o.left = true;
+  o.mesh.visible = false;
+  popup(`👋 ${t('party.leftGame', { name: o.name })}`, '', '#5d4037');
+  // Alla andra borta innan något har hänt: ingen vinnare, inga pengar
+  if (!race.startedAt && [...race.others.values()].every((x) => x.left)) {
+    abortRace();
     return;
   }
-  el.classList.remove('hidden');
-  const w = raceWinner();
-  el.className = `rank race-res${w ? ` race-${w}` : ''}`;
-  if (!w) el.textContent = t('race.waiting', { name: race.opp.name });
-  else if (race.oppDone.left) el.textContent = t('race.left', { name: race.opp.name });
-  else el.textContent = w === 'me' ? t('race.won', { name: race.opp.name }) : t('race.lost', { name: race.opp.name });
-  if (w) {
-    if (w === 'me') {
-      // Vinnaren får dubbla pengar för rundan: lika mycket till som åket gav
-      const prize = race.myDone.score;
-      if (prize > 0) {
-        save.bank += prize;
-        persist();
-        el.textContent += ` ${t('race.prize', { n: fmt(prize) })}`;
-      }
-      Sound.combo(5);
+  // Trick-duell: den som går förlorar, men det ger inga prispengar
+  if (race.mode === 'duel' && !race.over) {
+    race.over = true;
+    finishSession([save.playerId, id], null, true);
+    return;
+  }
+  checkSessionEnd();
+}
+
+// Alla klara (eller borta)? Räkna ut placeringarna
+function checkSessionEnd() {
+  const r = race;
+  if (!r || r.over || !r.myDone) return;
+  if (![...r.others.values()].every((o) => o.done || o.left)) {
+    if (r.mode === 'race' || r.mode === 'pslalom') renderRaceResult();
+    return;
+  }
+  r.over = true;
+  const entries = [{ id: save.playerId, ...r.myDone }];
+  for (const [id, o] of r.others) if (!o.left) entries.push({ id, ...o.done });
+  let order;
+  if (r.mode === 'bigair') {
+    const best2 = (list) => list.slice().sort((a, b) => b - a).slice(0, 2).reduce((s, v) => s + v, 0);
+    for (const e of entries) e.total = best2(e.attempts || []);
+    order = entries.sort((a, b) => b.total - a.total || (a.id < b.id ? -1 : 1));
+  } else {
+    // I mål före inte i mål, snabbast tid, annars längst sträcka. Exakt lika: spelar-id avgör.
+    order = entries.sort((a, b) => (b.finished - a.finished)
+      || (a.finished ? a.time - b.time : b.dist - a.dist)
+      || (a.id < b.id ? -1 : 1));
+  }
+  const left = [...r.others.keys()].filter((id) => r.others.get(id).left);
+  finishSession([...order.map((e) => e.id), ...left], order);
+}
+
+const PRIZES = { duel: [1500, 300], bigair: [2000, 800, 300], pslalom: null, race: null };
+
+// Placeringar klara: pengar, text och revansch
+function finishSession(ids, entries = null, forfeit = false) {
+  const r = race;
+  const myPlace = ids.indexOf(save.playerId);
+  const name = (id) => (id === save.playerId ? t('party.you') : (r.others.get(id) || {}).name || '?');
+  const scoreOf = (id) => {
+    const e = entries && entries.find((x) => x.id === id);
+    if (!e) return '';
+    if (r.mode === 'bigair') return ` (${fmt(e.total)})`;
+    return e.finished ? ` (${e.time.toFixed(1)} s)` : ` (${fmt(e.dist)} m)`;
+  };
+  const lines = ids.map((id, i) => `${['🥇', '🥈', '🥉'][i] || `${i + 1}.`} ${name(id)}${r.others.get(id) && r.others.get(id).left ? ` – ${t('party.gone')}` : scoreOf(id)}`);
+  // Pris: race/parallellslalom: vinnaren får dubbla pengar för åket. Minilägen: fasta priser per placering.
+  // Inga pris om motståndaren gav upp, och i Big Air-tävlingen bara om man fått poäng
+  let prize = 0;
+  const myTotal = entries && (entries.find((e) => e.id === save.playerId) || {}).total;
+  if (forfeit || (r.mode === 'bigair' && !myTotal)) prize = 0;
+  else if (PRIZES[r.mode]) prize = PRIZES[r.mode][Math.min(myPlace, PRIZES[r.mode].length - 1)];
+  else if (myPlace === 0 && r.myDone && r.myDone.score > 0) prize = r.myDone.score;
+  if (prize > 0) {
+    save.bank += prize;
+    persist();
+  }
+  const head = myPlace === 0 ? t('race.wonAll') : t('race.place', { n: myPlace + 1 });
+  const text = `${head}${prize ? ` · +🪙 ${fmt(prize)}` : ''}\n${lines.join('\n')}`;
+  if (myPlace === 0) Sound.combo(5);
+  if (lastSession && lastSession.ch && lastSession.ch !== r.ch) party.client.removeChannel(lastSession.ch);
+  lastSession = { mode: r.mode, course: r.course, difficulty: r.difficulty, others: [...r.others.entries()].filter(([, o]) => !o.left).map(([id, o]) => ({ id, name: o.name })), ch: r.ch };
+  const mini = r.mode === 'duel' || r.mode === 'bigair';
+  endRace();
+  if (mini) {
+    // Minilägen har ingen vanlig resultatskärm
+    $('countdown').classList.add('hidden');
+    setText('sessres-title', `${PARTY_MODES[lastSession.mode].icon} ${t(`mode.${lastSession.mode}`)}`);
+    $('sessres-text').textContent = text;
+    state = 'menu';
+    resetWorld();
+    showOverlay('sessres');
+  } else {
+    raceResultText = { text, w: myPlace === 0 ? 'me' : 'opp' };
+    if (!$('gameover').classList.contains('hidden')) renderRaceResult();
+    else popup(head, prize ? `+🪙 ${fmt(prize)}` : '', myPlace === 0 ? '#2e7d32' : '#c62828');
+  }
+  $('btn-rematch').classList.toggle('hidden', !lastSession.others.length);
+  $('btn-sessres-rematch').classList.toggle('hidden', !lastSession.others.length);
+  // Kanalen hålls öppen en stund för emojis
+  const ch = lastSession.ch;
+  setTimeout(() => {
+    if (lastSession && lastSession.ch === ch) {
+      party.client.removeChannel(ch);
+      lastSession = null;
+      $('btn-rematch').classList.add('hidden');
+      $('btn-sessres-rematch').classList.add('hidden');
     }
-    // Resultatskärmen är inte öppen: visa vinnaren som en popup och spara texten till resultatskärmen
-    if ($('gameover').classList.contains('hidden')) {
-      popup(el.textContent, '', w === 'me' ? '#2e7d32' : '#c62828');
-      raceResultText = { text: el.textContent, w };
-    }
-    endRace();
+  }, 120000);
+}
+
+let raceResultText = null; // senaste resultatet, visas på resultatskärmen
+function renderRaceResult() {
+  const el = $('go-race');
+  if (dailyResultText) {
+    el.textContent = `🗓️ ${dailyResultText}`;
+    el.className = 'rank race-res race-me';
+    dailyResultText = null;
+    return;
+  }
+  $('btn-rematch').classList.toggle('hidden', !(lastSession && lastSession.others.length && !race));
+  if (race && race.myDone && !race.over && (race.mode === 'race' || race.mode === 'pslalom')) {
+    const waiting = [...race.others.values()].filter((o) => !o.done && !o.left).map((o) => o.name);
+    el.className = 'rank race-res';
+    el.textContent = t('race.waiting', { name: waiting.join(', ') });
+    el.classList.remove('hidden');
+    return;
+  }
+  el.classList.toggle('hidden', !raceResultText);
+  if (raceResultText) {
+    el.textContent = raceResultText.text;
+    el.className = `rank race-res race-${raceResultText.w}`;
+    raceResultText = null; // visas en gång
   }
 }
 
 function endRace() {
   if (!race) return;
-  const ch = race.ch;
   // Tillbaka till min egen bana och svårighetsgrad
   save.course = race.prev.course;
   save.difficulty = race.prev.difficulty;
   course = COURSES[save.course] || COURSES.classic;
   difficulty = DIFFICULTIES[save.difficulty] || DIFFICULTIES.normal;
   persist();
+  for (const [, o] of race.others) scene.remove(o.mesh);
+  const ch = race.ch;
+  const keep = lastSession && lastSession.ch === ch;
   race = null;
-  setTimeout(() => { if (party.client) party.client.removeChannel(ch); }, 1500);
-  if (ghost) {
-    scene.remove(ghost);
-    ghost = null;
-  }
+  if (!keep) setTimeout(() => { if (party.client) party.client.removeChannel(ch); }, 1500);
+  removeLaneDivider();
   worldRng = null;
   partyTrack(true);
 }
 
-// Racet blev inte av (motståndaren försvann eller ångrade sig före start)
+// Sessionen blev inte av (alla andra försvann före start)
 function abortRace() {
-  const name = race ? race.opp.name : '';
   endRace();
   $('countdown').classList.add('hidden');
   resetWorld();
   showMenu();
-  popup(`👥 ${t('party.cancelled', { name })}`, '', '#5d4037');
+  popup(`👥 ${t('party.cancelledAll')}`, '', '#5d4037');
 }
+
+// Lämna en pågående session (Avsluta i pausmenyn eller Tillbaka)
+function leaveSession() {
+  if (!race) return;
+  race.ch.send({ type: 'broadcast', event: 'leave', payload: { id: save.playerId } });
+  endRace();
+  $('countdown').classList.add('hidden');
+}
+
+// ---------- Emojis och revansch ----------
+function sendEmote(i) {
+  const e = EMOTES[i];
+  const ch = race ? race.ch : lastSession && lastSession.ch;
+  if (!e || !ch) return;
+  const now = performance.now();
+  if (now - (sendEmote.last || 0) < 800) return; // inte spamma
+  sendEmote.last = now;
+  ch.send({ type: 'broadcast', event: 'emote', payload: { id: save.playerId, e } });
+  showEmote(save.playerId, e);
+}
+
+function showEmote(id, e) {
+  if (!EMOTES.includes(e)) return;
+  const o = race && race.others.get(id);
+  const who = id === save.playerId ? t('party.you') : o ? o.name : (lastSession && (lastSession.others.find((x) => x.id === id) || {}).name) || '';
+  popup(`${e}`, who, '#3949ab');
+  Sound.click();
+}
+
+function rematch() {
+  const ls = lastSession;
+  if (!ls || !party.ready || race || party.hosting || party.joined) return Sound.denied();
+  party.mode = ls.mode;
+  const online = new Map(party.players.map((p) => [p.id, p]));
+  const targets = ls.others.filter((o) => online.has(o.id) && online.get(o.id).status === 'menu');
+  showParty();
+  if (!targets.length) {
+    popup(`👥 ${t('party.rematchNone')}`, '', '#5d4037');
+    return;
+  }
+  for (const o of targets) sendInvite(online.get(o.id));
+}
+
+// Knappar för emojis och spellägen
+for (const [i, e] of EMOTES.entries()) {
+  const b = document.createElement('button');
+  b.className = 'emote-btn';
+  b.textContent = e;
+  b.addEventListener('click', () => sendEmote(i));
+  $('emote-bar').append(b);
+}
+for (const mode of Object.keys(PARTY_MODES)) {
+  $('party-modes').append(segButton(`${PARTY_MODES[mode].icon}`, { mode }, () => setPartyMode(mode)));
+}
+for (const b of $('party-modes').children) b.textContent = `${PARTY_MODES[b.dataset.mode].icon} ${t(`mode.${b.dataset.mode}`)}`;
 
 partyConnect(); // syns direkt som online för andra
 
@@ -6493,6 +7343,7 @@ function frame(now) {
 
   const inMenu = state === 'menu' || state === 'shop';
   updateRace(dt);
+  updateDaily(dt);
   updateWorld(state === 'paused' ? 0 : dt, time);
   updateCamera(dt, time, wasMenu && !inMenu);
   wasMenu = inMenu;

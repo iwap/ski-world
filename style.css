@@ -1457,3 +1457,39 @@ body.touch .lift-skip { pointer-events: auto; padding: 12px; font-size: 16px; }
 .name-msg.err { color: #c62828; }
 .name-msg.ok { color: #2e7d32; }
 .name-msg.info { color: var(--muted); }
+
+/* Spellägen, grupp, emojis och dagens utmaning */
+.party-modes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 4px 0 4px; }
+.party-modes .seg-btn { font-size: 13px; padding: 6px 10px; }
+.party-mode-desc { margin: 2px 0 8px; font-weight: 700; color: var(--ink); }
+.party-group { margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: #e8eaf6; border: 2px solid #9fa8da; text-align: left; }
+.group-title { font-weight: 900; margin-bottom: 6px; }
+.group-row { font-weight: 700; font-size: 14px; padding: 2px 0; }
+.group-row.g-joined { color: #2e7d32; }
+.group-row.g-declined, .group-row.g-noanswer, .group-row.g-gone, .group-row.g-locked { color: #c62828; }
+.group-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.party-group > button { margin-top: 6px; }
+.emote-bar { position: fixed; z-index: 45; left: 12px; bottom: 12px; display: flex; gap: 6px; }
+.emote-btn { font-size: 22px; padding: 4px 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.9); }
+.rematch-btn { background: linear-gradient(180deg, #4dd0e1, #3949ab) !important; color: #fff !important; border-color: #3949ab !important; font-weight: 800; }
+.sessres-text { white-space: pre-line; font-size: 18px; font-weight: 800; line-height: 1.6; }
+.race-hud { white-space: pre-line; }
+.race-res { white-space: pre-line; }
+.daily-btn { margin-top: 10px; padding: 8px 18px; border-radius: 999px; font-weight: 900; background: linear-gradient(180deg, #4dd0e1, #00838f) !important; color: #fff !important; border-color: #00838f !important; box-shadow: 0 4px 12px rgba(0, 131, 143, 0.35); }
+.theme-daily .ui-head { background: linear-gradient(135deg, #26c6da, #00838f); }
+.daily-course { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #2e7d32, #1565c0); }
+.daily-course.course-park { background: linear-gradient(135deg, #8e24aa, #e91e63); }
+.daily-course.course-moguls { background: linear-gradient(135deg, #455a64, #0288d1); }
+.daily-course.course-pipe { background: linear-gradient(135deg, #1565c0, #00acc1); }
+.daily-course.course-slalom { background: linear-gradient(135deg, #c62828, #ef6c00); }
+.daily-course.course-bigair { background: linear-gradient(135deg, #ff6f00, #6a1b9a); }
+.daily-course-name { font-size: 26px; font-weight: 900; text-transform: uppercase; }
+.daily-next { font-size: 13px; font-weight: 700; opacity: 0.9; }
+.daily-best { font-weight: 900; margin: 6px 0; }
+.daily-list { display: grid; gap: 6px; margin: 4px 0; max-height: 34vh; overflow-y: auto; }
+.daily-row { display: grid; grid-template-columns: 34px 1fr auto auto; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 12px; background: #fff; border: 2px solid var(--line); text-align: left; }
+.daily-row.me { background: #e8f5e9; border-color: #66bb6a; }
+.dr-rank { font-weight: 900; text-align: center; }
+.dr-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dr-score { font-weight: 900; color: #6a1b9a; }
+.dr-ghost { padding: 3px 10px; font-size: 13px; font-weight: 800; }

@@ -101,6 +101,7 @@
       <div id="course-dots" class="course-dots" aria-hidden="true"></div>
       <p id="menu-summary" class="summary"></p>
       <button id="btn-play" class="menu-play" data-autofocus>Åk!</button>
+      <button id="btn-daily" class="daily-btn"><span aria-hidden="true">🗓️</span> <span data-i18n="daily.title">Dagens utmaning</span></button>
       <p class="small keys-hint menu-keys"><kbd>←</kbd><kbd>→</kbd> <span data-i18n="menu.browse">bläddra</span> · <kbd>↑</kbd><kbd>↓</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span></p>
     </div>
 
@@ -205,14 +206,45 @@
     <div id="tut-desc" class="tut-desc"></div>
   </div>
 
+  <div id="daily" class="overlay hidden">
+    <div class="panel ui-panel theme-daily">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🗓️</span><h2 data-i18n="daily.title">Dagens utmaning</h2></header>
+      <div id="daily-course" class="daily-course"><span id="daily-course-name" class="daily-course-name"></span><span id="daily-next" class="daily-next"></span></div>
+      <p class="small" data-i18n="daily.hint">Samma bana för alla i hela världen idag. Kör hur många gånger du vill – ditt bästa åk räknas.</p>
+      <p id="daily-best" class="daily-best"></p>
+      <div id="daily-list" class="daily-list"></div>
+      <p id="daily-status" class="small"></p>
+      <div class="buttons ui-foot">
+        <button id="btn-daily-back" data-i18n="btn.back">Tillbaka</button>
+        <button id="btn-daily-ghost-me" class="hidden" data-i18n="daily.ghostMe">👻 Mot mitt bästa</button>
+        <button id="btn-daily-go" class="primary" data-autofocus data-i18n="daily.go">▶ Kör dagens bana</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sessres" class="overlay hidden">
+    <div class="panel ui-panel theme-party">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🏆</span><h2 id="sessres-title"></h2></header>
+      <p id="sessres-text" class="sessres-text"></p>
+      <div class="buttons ui-foot">
+        <button id="btn-sessres-menu" data-i18n="btn.menu">Meny</button>
+        <button id="btn-sessres-rematch" class="primary" data-autofocus data-i18n="party.rematch">🔁 Revansch</button>
+      </div>
+    </div>
+  </div>
+  <div id="emote-bar" class="emote-bar hidden"></div>
+
   <div id="party" class="overlay hidden">
     <div class="panel ui-panel theme-party">
       <header class="ui-head"><span class="ui-ico" aria-hidden="true">👥</span><h2 data-i18n="party.title">Online</h2></header>
       <p id="party-status" class="small party-status hidden"></p>
       <p id="party-me" class="small party-me"></p>
+      <div id="party-modes" class="seg party-modes" role="group"></div>
+      <p id="party-mode-desc" class="small party-mode-desc"></p>
+      <div id="party-group" class="party-group hidden"></div>
       <div id="party-list" class="party-list"></div>
       <p id="party-empty" class="small party-empty hidden" data-i18n="party.empty">Ingen annan är online just nu.</p>
-      <p class="small" data-i18n="party.hint">Bjud in någon till ett race på banan du har valt i menyn.</p>
+      <p class="small" data-i18n="party.hint2">Välj spelläge, bjud in och tryck Starta när de gått med. Emojis: 1–4.</p>
       <div class="buttons ui-foot"><button id="btn-party-back" class="primary" data-i18n="btn.back">Tillbaka</button></div>
       <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
     </div>
@@ -331,6 +363,7 @@
         <button id="btn-go-shop" data-i18n="btn.shop">Butik</button>
         <button id="btn-go-board" data-i18n="btn.board">Topplista</button>
         <button id="btn-go-menu" data-i18n="btn.menu">Meny</button>
+        <button id="btn-rematch" class="rematch-btn hidden" data-i18n="party.rematch">🔁 Revansch</button>
       </div>
     </div>
   </div>
