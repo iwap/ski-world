@@ -45,6 +45,8 @@ end $$;
 drop trigger if exists scores_rate_limit on public.scores;
 create trigger scores_rate_limit before insert on public.scores
   for each row execute function public.scores_rate_limit();
+-- Spärren körs bara automatiskt vid sparning – den ska inte gå att anropa via API:t
+revoke execute on function public.scores_rate_limit() from public, anon, authenticated;
 
 -- Varje spelares bästa åk per bana (det är den som visas i topplistan)
 create or replace view public.best_scores with (security_invoker = true) as
