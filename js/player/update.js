@@ -58,6 +58,7 @@ function update(dt) {
       // Klippan: ett litet skutt ut från kanten, sedan fritt fall ner (marken försvann redan en bit den här bildrutan)
       launch((2.5 + p.speed * 0.06) * s.jumpPower);
       p.z = Math.max(0.01, -db);
+      p.cliffDrop = features.find((f) => f.cliff && p.prevD < f.lip && p.d >= f.lip).H;
     } else if (db < -0.6 && !p.onRock && !(inPipe(p.d) && Math.abs(p.x) < PIPE_COPING + 0.3)) {
       // Marken försvann under en (en kant) – fall ner istället för att teleporteras.
       // Pipens väggar är branta men ingen kant: där följer man väggen ner efter landningen.

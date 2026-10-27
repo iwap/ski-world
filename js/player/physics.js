@@ -68,8 +68,13 @@ function land() {
   const pw = course.powder ? 2.5 : 1;
   burst(f.x, f.y + 0.1, f.z, Math.round((small ? 8 : 45) * pw), small ? 2 : 4 * Math.sqrt(pw), 0.45 * Math.sqrt(pw));
   const fail = collectAirTricks();
-  if (fail) return crash(fail);
+  if (fail) {
+    p.cliffDrop = 0;
+    return crash(fail);
+  }
   if (run.maxAir >= 8) earnBadge('bigair');
+  if (p.cliffDrop >= 8) earnBadge('cliff');
+  p.cliffDrop = 0;
   finishCombo();
 }
 
@@ -92,7 +97,7 @@ function startGrind(o, info) {
   const entry = pointAt(o, info.t);
   const crossing = Math.abs(wrapAngle(p.angle - entry.a));
   if (crossing > 1.1) return false;
-  if (p.flipping && p.flipProg < 0.8) {
+  if ((p.flipping && p.flipProg < 0.8) || (p.corking && p.corkProg < 0.8)) {
     crash('crash.railHead', o);
     return true;
   }
@@ -112,6 +117,11 @@ function startGrind(o, info) {
   if (fronts > 0) {
     c.parts.push(fronts === 1 ? 'Frontflip' : `${fronts}x frontflip`);
     c.pts += 170 * fronts;
+  }
+  const corks = p.corks + (p.corking ? 1 : 0);
+  if (corks > 0) {
+    c.parts.push(corks === 1 ? 'Cork 360' : `${corks}x cork`);
+    c.pts += 200 * corks;
   }
   const grabs = addGrabs(c);
   trickBadges({ flips, fronts, spin: spinIn, grabs, perfect: false });
@@ -291,7 +301,20 @@ function updateAir(dt, s) {
   const front = wasPressed('ArrowUp', 'KeyW');
   // Cooldown mellan volterna så att man inte kan spamma dem
   p.trickCd = Math.max(0, (p.trickCd || 0) - dt);
-  if (!p.flipping && p.trickCd <= 0 && (front || wasPressed('ArrowDown', 'KeyS'))) {
+  if (!p.flipping && !p.corking && p.trickCd <= 0 && wasPressed('KeyG')) {
+    p.corking = true;
+    p.corkProg = 0;
+    p.corkDir = p.spin < 0 || isLeft() ? -1 : 1; // åt samma håll som man redan snurrar
+  }
+  if (p.corking) {
+    p.corkProg += dt / (s.flipTime * 1.1);
+    if (p.corkProg >= 1) {
+      p.corking = false;
+      p.trickCd = TRICK_COOLDOWN;
+      p.corks++;
+    }
+  }
+  if (!p.flipping && !p.corking && p.trickCd <= 0 && (front || wasPressed('ArrowDown', 'KeyS'))) {
     p.flipping = true;
     p.flipProg = 0;
     p.flipDir = front ? -1 : 1;
@@ -377,6 +400,7 @@ function checkCollisions(s) {
       if (roof < 0) continue;
       if (p.air && p.vz <= 0 && p.z <= top + 0.1 && p.z >= top - 0.7) {
         landOnRock(o, top, 'Roof ride', 60);
+        if (state === 'playing') earnBadge('roof');
         if (state !== 'playing') return;
         continue;
       }

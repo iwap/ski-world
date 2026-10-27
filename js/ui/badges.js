@@ -27,7 +27,8 @@ function badgeProgress(id, item) {
     persist();
   }
   const b = BADGES.find((x) => x.id === id);
-  if (list.length >= b.goal) earnBadge(id);
+  const valid = id === 'grabs' ? list.filter((g) => GRABS.some((x) => x.id === g)) : list; // Mute grab finns inte längre
+  if (valid.length >= b.goal) earnBadge(id);
 }
 
 function trickBadges({ flips, fronts, spin, grabs, perfect }) {

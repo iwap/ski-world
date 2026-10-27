@@ -69,6 +69,7 @@ runTest(async (t) => {
     }, { invuln: true, until: () => landD !== null });
     out.push(`klippa 5 m vid x=${x}: ${maxZ.toFixed(1)} m luft, landade ${landD && (landD - f.lip).toFixed(1)} m ut`);
     t.ok(maxZ > 4.5, `klippan vid x=${x}: bara ${maxZ.toFixed(1)} m luft`);
+    t.ok(!save.badges.cliff, 'märket Klipphoppare för en klippa under 8 m');
   }
   // Stugan: landa på taket och åk av det. Kör man in i väggen kraschar man.
   const hutType = OBSTACLES.find((o) => o.type === 'hut');
@@ -97,6 +98,7 @@ runTest(async (t) => {
       t.ok(rode, 'landade inte på stugans tak');
       t.ok(state === 'playing', `kraschade på taket (${player.crashReason})`);
       t.ok(player.combo.parts.includes('Roof ride') || run.tricks > 0, 'Roof ride räknades inte');
+      t.ok(save.badges.roof, 'märket Takåkare tjänades inte in');
     } else t.ok(state !== 'playing' && ['crash.hut', window.t('crash.hut')].includes(player.crashReason), `körde rakt genom stugan (${state}, ${player.crashReason})`);
   }
   t.note(out.join(' · '));

@@ -23,6 +23,7 @@ Användaren skriver på svenska: svara på svenska.
 - Off-pist (bara där): halva längden (`lengthMult`), smal (`netX: 18`) med rep istället för nät, tät skog, pudersnö (`powder`), små puckar överallt (`lumps`), inga byggda hopp eller räcken – bara fallna träd (`log`), naturliga snöpuckar (`bump`) och ibland en klippa över hela bredden (`cliff`, 2–12 m). Ibland en liten stuga (`hut`) i landningen efter en klippa eller puck – man kan landa och åka på taket.
 - Slalomportarna har små flaggor på stängerna.
 - Halfpipen: 1,5 gånger så hög luft (`PIPE_LIFT`) och mer förlåtande landningar.
+- Tricks i luften: ← → snurr, ↑ ↓ volt, G cork (ett varv runt en lutad axel, över huvudet), F R V Q grabs (Mute grab är borttagen). Nya tricks ska med i tutorialen.
 - Ingen slowmotion. Volt-cooldown 0,25 s, kedjan nollställs efter 3 s utan nytt trick.
 - Vinnaren av ett race får dubbla pengar. Namn är unika och minst 3 tecken.
 - Tutorialen visas bara första gången någonsin.

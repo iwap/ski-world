@@ -583,9 +583,9 @@ function partyCrash() {
   if (race && race.attempt) race.attempt.crashed = true;
 }
 
-// Tricket som en jämförbar lista: snurr, volter och grabs – samma på alla språk
+// Tricket som en jämförbar lista: snurr, volter, corks och grabs – samma på alla språk
 function trickSig(combo) {
-  return combo ? [...new Set(combo.sig)].filter((s) => /^(spin\d+|back\d+|front\d+|grab-[a-z]+)$/.test(s)).sort() : [];
+  return combo ? [...new Set(combo.sig)].filter((s) => /^(spin\d+|back\d+|front\d+|cork\d+|grab-[a-z]+)$/.test(s)).sort() : [];
 }
 
 // Tricket i text på mitt språk, t.ex. "360 + Dubbel backflip + Indy grab"
@@ -599,6 +599,8 @@ function sigLabel(sig) {
       const base = m[1] === 'back' ? 'Backflip' : 'Frontflip';
       return n === 1 ? base : n === 2 ? t(m[1] === 'back' ? 'trick.doubleBackflip' : 'trick.doubleFrontflip') : `${n}x ${base.toLowerCase()}`;
     }
+    m = s.match(/^cork(\d+)$/);
+    if (m) return m[1] === '1' ? 'Cork 360' : m[1] === '2' ? 'Double cork' : `${m[1]}x cork`;
     const g = GRABS.find((x) => `grab-${x.id}` === s);
     return g ? g.name : s;
   }).join(' + ');

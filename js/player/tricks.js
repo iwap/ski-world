@@ -16,6 +16,9 @@ function clearTricks() {
   p.flips = 0;
   p.frontFlips = 0;
   p.flipDir = 1;
+  p.corking = false;
+  p.corkProg = 0;
+  p.corks = 0;
   p.grabTime = 0;
   p.grabTimes = {};
 }
@@ -120,6 +123,11 @@ function collectAirTricks() {
     if (p.flipDir < 0) fronts++;
     else flips++;
   }
+  let corks = p.corks || 0;
+  if (p.corking) {
+    if (p.corkProg < (0.8 - 0.3 * ability('land')) / easy) return 'crash.head';
+    corks++;
+  }
   // Varje halvvarv (180°) är ett giltigt läge – udda antal betyder att du landar baklänges
   const halves = Math.round(p.spin / Math.PI);
   const off = Math.abs(p.spin - halves * Math.PI);
@@ -144,11 +152,17 @@ function collectAirTricks() {
     c.parts.push(fronts === 1 ? 'Frontflip' : fronts === 2 ? t('trick.doubleFrontflip') : `${fronts}x frontflip`);
     c.pts += 170 * fronts * (fronts + 1) / 2;
   }
+  if (corks > 0) {
+    c.parts.push(corks === 1 ? 'Cork 360' : corks === 2 ? 'Double cork' : `${corks}x cork`);
+    c.pts += 200 * corks * (corks + 1) / 2;
+    c.sig.push(`cork${corks}`);
+    earnBadge('cork');
+  }
   const grabs = addGrabs(c);
   for (const g of grabs) c.sig.push(`grab-${g}`);
-  // Perfekt landning: nästan exakt rakt (under ~7°) efter snurr eller volt, och volten helt klar
-  const flipClean = !p.flipping || p.flipProg >= 0.97;
-  const perfect = (n > 0 || flips > 0 || fronts > 0) && off < 0.12 && flipClean;
+  // Perfekt landning: nästan exakt rakt (under ~7°) efter snurr, volt eller cork, och tricket helt klart
+  const flipClean = (!p.flipping || p.flipProg >= 0.97) && (!p.corking || p.corkProg >= 0.97);
+  const perfect = (n > 0 || flips > 0 || fronts > 0 || corks > 0) && off < 0.12 && flipClean;
   if (perfect) {
     c.parts.push(`✨ ${t('trick.perfect')}`);
     c.noMult = (c.noMult || 0) + 1;

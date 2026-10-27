@@ -13,6 +13,8 @@ const ANKLE = new THREE.Vector3(0, 0.3, 0.02);
 const DOWN = new THREE.Vector3(0, -1, 0);
 const KNEE_HINT_BOARD = [new THREE.Vector3(1, 0, -0.3), new THREE.Vector3(1, 0, 0.3)];
 
+const CORK_AXIS = new THREE.Vector3(0, Math.cos(Math.PI / 3), Math.sin(Math.PI / 3)).normalize();
+
 function updateSkierModel(dt, time) {
   const p = player;
   const m = skier;
@@ -61,6 +63,8 @@ function updateSkierModel(dt, time) {
     p.stumble = Math.max(0, (p.stumble || 0) - dt * 1.4);
     const wobble = Math.sin(time * 22) * 0.35 * p.stumble;
     m.flipG.rotation.set(p.flipping ? p.flipDir * p.flipProg * Math.PI * 2 : -p.stumble * 0.5, 0, p.lean + wobble);
+    // Cork: ett varv runt en axel som lutar 60° bakåt från lodrätt – mitt i varvet är huvudet nere och skidorna uppe
+    if (p.corking) m.flipG.quaternion.setFromAxisAngle(CORK_AXIS, -p.corkDir * p.corkProg * Math.PI * 2);
   }
 
   const grab = !crashed && !seated && air && isGrab();
@@ -203,7 +207,6 @@ function updateSkierModel(dt, time) {
       if (grab) {
         const gb = grabId;
         if (gb === 'indy' && i === 1) return tmpA.set(0.15, pose.lift + 0.06, 0.04);          // bakre handen på tåkanten
-        if (gb === 'mute' && i === 0) return tmpA.set(0.15, pose.lift + 0.06, -0.22 * zs);    // främre handen på tåkanten
         if (gb === 'japan' && i === 0) return tmpA.set(-0.1, pose.lift + 0.08, -0.3 * zs);    // främre handen bakom, på hälkanten
         if (gb === 'tail' && i === 1) return tmpA.set(0, pose.lift + 0.05, 0.62 * zs);        // bakre handen på tailen
         if (gb === 'chinese') return tmpA.set(0.1, pose.lift + 0.05, (i ? 0.6 : -0.6) * zs); // nose och tail samtidigt
@@ -224,7 +227,6 @@ function updateSkierModel(dt, time) {
     if (grab) {
       const gb = grabId;
       if (gb === 'indy' && i === 1) return tmpA.set(0.25, pose.lift + 0.1, -0.24);     // höger hand på höger skida
-      if (gb === 'mute' && i === 0) return tmpA.set(0.22, pose.lift + 0.12, -0.5);     // vänster hand korsar till höger skida
       if (gb === 'japan' && i === 0) return tmpA.set(-0.05, pose.lift + 0.14, -0.4);   // knäna upp, skidorna dras bakåt
       if (gb === 'tail' && i === 1) return tmpA.set(0.2, pose.lift + 0.08, 0.55);      // bakänden på skidan
       if (gb === 'chinese') return tmpA.set(i ? 0.22 : -0.22, pose.lift + 0.08, 0.5); // båda händerna bak på skidorna

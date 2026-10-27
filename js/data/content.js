@@ -78,7 +78,6 @@ const ABILITY_KEYS = ['speed', 'spin', 'flip', 'land', 'air', 'tricks', 'coins',
 // Grabs: varsin tangent. Poäng per sekund man håller i.
 const GRABS = [
   { id: 'indy',    key: 'KeyF', name: 'Indy grab',    pts: 120 },
-  { id: 'mute',    key: 'KeyG', name: 'Mute grab',    pts: 130 },
   { id: 'japan',   key: 'KeyR', name: 'Japan grab',   pts: 150 },
   { id: 'chinese', key: 'KeyV', name: 'Chinese grab', pts: 170 },
   { id: 'tail',    key: 'KeyQ', name: 'Tail grab',    pts: 140 },
@@ -99,6 +98,9 @@ const BADGES = [
   { id: 'chain5',     cat: 'tricks', icon: '☄️', reward: 2000 },
   { id: 'grind30',    cat: 'tricks', icon: '🛤️', reward: 700 },
   { id: 'bigair',     cat: 'tricks', icon: '🚀', reward: 1000 },
+  { id: 'cork',       cat: 'tricks', icon: '🌀', reward: 800 },
+  { id: 'cliff',      cat: 'tricks', icon: '🏔️', reward: 1500 },
+  { id: 'roof',       cat: 'tricks', icon: '🛖', reward: 1000 },
   { id: 'highfive',   cat: 'tricks', icon: '✋', reward: 300 },
   { id: 'nearmiss',   cat: 'tricks', icon: '😮', reward: 300 },
   ...['classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste'].map((c) => ({ id: `course-${c}`, cat: 'courses', course: c, reward: 1000 })),
@@ -106,7 +108,7 @@ const BADGES = [
   { id: 'diff-easy',   cat: 'diff', diff: 'easy',   icon: '🟢', reward: 500 },
   { id: 'diff-normal', cat: 'diff', diff: 'normal', icon: '🔵', reward: 1000 },
   { id: 'diff-hard',   cat: 'diff', diff: 'hard',   icon: '⚫', reward: 2500 },
-  { id: 'hardall',     cat: 'diff', icon: '👑', reward: 10000, goal: 5 },
+  { id: 'hardall',     cat: 'diff', icon: '👑', reward: 10000, goal: Object.keys(COURSES).length },
   { id: 'score5k',     cat: 'diff', icon: '💰', reward: 1000 },
   { id: 'score10k',    cat: 'diff', icon: '💎', reward: 3000 },
 ];

@@ -34,7 +34,7 @@ function updateChain(dt) {
   const p = player;
   const ch = p.chain;
   // Tiden räknas ner även i luften, men står still medan man faktiskt gör ett trick (rotation, grab eller grind)
-  const tricking = p.grind || (p.air && (p.flipping || p.flips > 0 || p.frontFlips > 0 || Math.abs(p.spin) > 0.5 || currentGrab()));
+  const tricking = p.grind || (p.air && (p.flipping || p.flips > 0 || p.frontFlips > 0 || p.corking || p.corks > 0 || Math.abs(p.spin) > 0.5 || currentGrab()));
   if (ch.timer > 0 && !tricking) {
     ch.timer -= dt;
     if (ch.timer <= 0) {

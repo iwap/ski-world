@@ -15,7 +15,7 @@ function newPlayer() {
   return {
     x: 0, d: 0, angle: 0, speed: 0, turnVel: 0,
     z: 0, vz: 0, air: false,
-    spin: 0, spinArmed: false, flipping: false, flipProg: 0, flips: 0, grabTime: 0,
+    spin: 0, spinArmed: false, flipping: false, flipProg: 0, flips: 0, grabTime: 0, corking: false, corkProg: 0, corks: 0,
     facing: 0, facingVis: 0,        // 0 = framlänges, π = baklänges (switch)
     grind: null, onRock: null, balance: 0, balanceVel: 0, twist: 0,
     combo: { parts: [], pts: 0 },

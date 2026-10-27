@@ -25,5 +25,7 @@ runTest(async (t) => {
   finishRun();
   t.eq(runScore(), (before + run.finishBonus) * 2, 'poängen ska dubblas i mål');
   t.ok(save.leaderboard.some((e) => e.score === (before + run.finishBonus) * 2), 'det dubblade resultatet ska sparas');
+  t.eq(BADGES.find((b) => b.id === 'hardall').goal, Object.keys(COURSES).length, 'Legend ska kräva alla banor');
+  t.ok(BADGES.some((b) => b.id === 'course-offpiste'), 'märke för att klara off-pist saknas');
   showMenu();
 });

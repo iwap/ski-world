@@ -6,6 +6,7 @@ let tutorial = null; // { step, t, botKeys, done }
 const TUT_KEYS = {
   ArrowLeft: { key: '←', touch: '◀' }, ArrowRight: { key: '→', touch: '▶' }, ArrowDown: { key: '↓', touch: '▼' },
   Space: { key: 'Space', touch: 'HOPP' }, KeyF: { key: 'F', touch: '🤙' }, KeyT: { key: 'T', touch: '⬇' },
+  KeyG: { key: 'G', touch: '◀ + 🤙' },
 };
 // Steg efter sträcka: vilka knappar som visas och var hindren ligger
 const TUT_STEPS = [
@@ -15,7 +16,8 @@ const TUT_STEPS = [
   { id: 'spin', until: 172, keys: ['ArrowLeft', 'ArrowRight'], ramp: [2, 115] },
   { id: 'flip', until: 252, keys: ['ArrowDown'], ramp: [2, 190] },
   { id: 'grab', until: 330, keys: ['KeyF'], ramp: [2, 268] },
-  { id: 'rail', until: 420, keys: ['Space'], ramp: [0, 345], rail: true },
+  { id: 'cork', until: 420, keys: ['KeyG'], ramp: [2, 350] },
+  { id: 'rail', until: 510, keys: ['Space'], ramp: [0, 435], rail: true },
   { id: 'done', until: Infinity, keys: [] },
 ];
 
@@ -118,6 +120,10 @@ function updateTutorial(dt) {
     tu.jumped = true;
   }
   if (st.id === 'grab' && overKicker && (p.vz > 0 || p.z > 0.6)) want.add('KeyF');
+  if (st.id === 'cork' && overKicker && !tu.jumped) {
+    want.add('KeyG');
+    tu.jumped = true;
+  }
   if (st.id === 'done') {
     tu.doneT += dt;
     if (tu.doneT > 3) {
