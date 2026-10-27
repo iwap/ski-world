@@ -22,6 +22,7 @@ function play(n, hook, opts = {}) {
     updateRace(1 / 60);
     updateDaily(1 / 60);
     updateRunSeed(1 / 60);
+    updatePresents(1 / 60);
     pressed.clear();
     if (opts.until && opts.until()) break;
   }
