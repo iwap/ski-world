@@ -29,6 +29,8 @@ function updatePipe(s) {
   }
 }
 
+const PIPE_TRICK_TIME = 15; // halfpipe: sekunder man får åka utan att göra ett trick
+
 function update(dt) {
   const s = stats();
   const p = player;
@@ -95,6 +97,23 @@ function update(dt) {
   if (course.slalom) {
     checkGates();
     if (state !== 'playing') return;
+  }
+
+  // Halfpipe: högst PIPE_TRICK_TIME sekunder utan ett trick (snurr, volt, cork eller grab), annars är åket slut
+  if (course.pipe && !tutorial) {
+    const before = run.noTrick || 0;
+    run.noTrick = before + dt;
+    const left = Math.ceil(PIPE_TRICK_TIME - run.noTrick);
+    if (left <= 5 && left < Math.ceil(PIPE_TRICK_TIME - before)) {
+      popup(`⏱ ${t('pipe.trickWarn')}`, `${left}`, '#e65100');
+      Sound.tick();
+    }
+    if (run.noTrick >= PIPE_TRICK_TIME) {
+      p.crashReason = t('crash.noTrick');
+      p.dq = true;
+      endRun();
+      return;
+    }
   }
 
   // Studsa mot avspärrningsnäten

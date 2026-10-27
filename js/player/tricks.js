@@ -163,6 +163,7 @@ function collectAirTricks() {
   // Perfekt landning: nästan exakt rakt (under ~7°) efter snurr, volt eller cork, och tricket helt klart
   const flipClean = (!p.flipping || p.flipProg >= 0.97) && (!p.corking || p.corkProg >= 0.97);
   const perfect = (n > 0 || flips > 0 || fronts > 0 || corks > 0) && off < 0.12 && flipClean;
+  if (n > 0 || flips > 0 || fronts > 0 || corks > 0 || grabs.length) run.noTrick = 0; // halfpipe-klockan
   if (perfect) {
     c.parts.push(`✨ ${t('trick.perfect')}`);
     c.noMult = (c.noMult || 0) + 1;

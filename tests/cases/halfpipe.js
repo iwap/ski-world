@@ -21,6 +21,9 @@ runTest(async (t) => {
       else if (player.angle > want + 0.05) keys.add('ArrowLeft');
       if (Math.abs(player.x) > PIPE_COPING - 1 && Math.sign(player.x) === side) side = -side;
     } else maxZ = Math.max(maxZ, player.z);
+    // En grab i varje luftfärd (annars tar åket slut efter 15 sekunder utan trick)
+    keys.delete('KeyF');
+    if (player.air && player.pipeAir) keys.add('KeyF');
     // Landning från väggen följd av ett "fall" (studs) strax efter
     sinceLand += 1 / 60;
     if (wasAir && !player.air && wasPipeAir) {
@@ -49,6 +52,21 @@ runTest(async (t) => {
   startRun();
   player.d = 200;
   t.eq(tryLand(Math.PI + 0.9, 0), 'crash.crooked', 'sned 180 i vanlig backe ska fortfarande krascha');
+  showMenu();
+  // Åka rakt fram utan tricks: slut efter 15 sekunder. Ett trick nollställer klockan.
+  setCourse('pipe');
+  startRun();
+  play(60 * 10, () => keys.clear(), { invuln: true });
+  t.eq(state, 'playing', 'åket tog slut för tidigt');
+  player.air = true;
+  player.spin = Math.PI * 2; // en landad 360
+  t.eq(collectAirTricks(), null, '360 landade inte');
+  player.air = false;
+  t.ok(run.noTrick < 0.1, 'ett trick nollställde inte klockan');
+  play(60 * 14, () => keys.clear(), { invuln: true });
+  t.eq(state, 'playing', 'klockan nollställdes inte av tricket');
+  play(60 * 2, () => keys.clear(), { invuln: true });
+  t.ok(state !== 'playing' && player.crashReason === window.t('crash.noTrick'), `åket fortsatte utan tricks (${state})`);
   showMenu();
   t.note(`högsta luft ${maxZ.toFixed(1)} m, ${landings} landningar`);
 });
