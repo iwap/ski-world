@@ -26,7 +26,6 @@ function launch(vz, quiet = false) {
   p.vz = vz;
   p.z = Math.max(p.z, 0.01);
   p.onRock = null;
-  p.onRamp = null;
   p.maxZ = 0;
   p.prevBvy = 0;
   p.takeoffSwitch = isSwitch();

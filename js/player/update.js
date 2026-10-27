@@ -119,13 +119,13 @@ function update(dt) {
       Sound.bounce();
     }
   }
-  if (!p.air && !p.grind && !p.onRock && !p.onRamp) emitCarve(dt, s);
+  if (!p.air && !p.grind && !p.onRock) emitCarve(dt, s);
   if (!p.grind) checkCollisions(s);
   if (state !== 'playing') return;
 
   // Skidspår (inte uppe på stenar)
-  if ((p.onRock || p.onRamp) && trail.length && !trail[trail.length - 1].gap) trail.push({ gap: true });
-  if (!p.air && !p.grind && !p.onRock && !p.onRamp) {
+  if (p.onRock && trail.length && !trail[trail.length - 1].gap) trail.push({ gap: true });
+  if (!p.air && !p.grind && !p.onRock) {
     const last = trail[trail.length - 1];
     if (!last || last.gap || (p.x - last.x) ** 2 + (p.d - last.d) ** 2 > 0.6) {
       trail.push({ x: p.x, d: p.d, a: p.angle, y: groundY(p.x, p.d) });

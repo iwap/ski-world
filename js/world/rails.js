@@ -206,7 +206,7 @@ function buildBox(o) {
 }
 
 const dummy = new THREE.Object3D();
-const NO_MODEL = new Set(['gate', 'spine', 'rollers', 'cannon', 'sign', 'deco']); // egna meshar eller bara terräng
+const NO_MODEL = new Set(['gate', 'ramp', 'spine', 'rollers', 'cannon', 'sign', 'deco']); // egna meshar eller bara terräng
 const WHITE = new THREE.Color(1, 1, 1);
 
 function syncInstances(time) {
@@ -215,15 +215,11 @@ function syncInstances(time) {
     if (o.taken || isLinear(o) || NO_MODEL.has(o.type)) continue;
     const m = MODELS[o.model];
     const i = counts[o.model] || 0;
-    if (!m || i >= m.cap) continue; // jättehoppet är bara terräng
+    if (!m || i >= m.cap) continue;
     const y = groundY(o.x, o.d);
     if (o.type === 'star') {
       dummy.position.set(o.x, y + 1.3 + Math.sin(time * 3 + o.rot) * 0.15, -o.d);
       dummy.rotation.set(0, time * 2.5 + o.rot, 0);
-    } else if (o.type === 'ramp') {
-      if (o.ramp.terrain) continue;
-      dummy.position.set(o.x, y - 0.05, -o.d);
-      dummy.rotation.set(-Math.atan(slopeAt(o.d)), 0, 0);
     } else {
       dummy.position.set(o.x, y - 0.08, -o.d);
       dummy.rotation.set(0, o.rot, 0);

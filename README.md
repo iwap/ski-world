@@ -23,6 +23,7 @@ Spelet är vanlig JavaScript med [Three.js](https://threejs.org/). Det behövs i
 | `js/main.js` | Huvudloopen som startar spelet |
 | `supabase.sql` | Databasen (tabeller, regler och funktioner) |
 | `tests/` | Automatiska tester |
+| `CLAUDE.md` | Hur koden är byggd och vilka riktlinjer som gäller (för Claude och andra utvecklare) |
 | `v1/` | Den första 2D-versionen |
 
 ### Laddningsordning

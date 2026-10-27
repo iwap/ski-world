@@ -95,23 +95,18 @@ function checkGates() {
   }
 }
 
-// Rail rakt efter en kicker, där man landar i normal fart – hoppa, gör en 360 och landa på railen
+// Rail ner för hoppets landning, där man landar i normal fart – hoppa, gör en 360 och landa på railen
 const RAIL_AFTER_JUMP = 0.6;
 function spawnRailAfterJump(ramp) {
-  const r = ramp.ramp;
-  if (r.terrain || ramp.feature || !course.weights.rail || Math.random() > RAIL_AFTER_JUMP) return;
-  const s = worldStats();
-  const v = s.cruise;
-  const vz = (r.vz + v * 0.06) * s.jumpPower;
-  const top = 0.7;
-  const tAir = (vz + Math.sqrt(vz * vz + 2 * GRAVITY * Math.max(0, r.h - top))) / GRAVITY;
-  const dist = v * tAir;
+  const f = ramp.feature;
+  if (ramp.ramp.mega || !course.weights.rail || Math.random() > RAIL_AFTER_JUMP) return;
   // Railen börjar lite före normal landning och räcker långt så att både lite långsammare och snabbare åkare når den
-  const start = ramp.d + r.l + dist * 0.75;
-  const len = Math.max(14, dist * 0.6 + 10);
+  const start = f.lip + f.reach * 0.75;
+  const len = Math.max(14, f.reach * 0.6 + 10);
   if (start + len > runLength() - 40 || pipeEnv(start + len + 20) > 0) return;
-  if (stripBlocked({ x: ramp.x, d: start - 2, ux: 0, ud: 1, len: len + 4, half: 1.6 })) return;
-  const rail = makeObject(OBSTACLES.find((o) => o.type === 'rail'), ramp.x, start, { variant: 'straight', ra: 0, len });
+  const rail = makeObject(OBSTACLES.find((o) => o.type === 'rail'), f.x, start, { variant: 'straight', ra: 0, len });
+  rail.jump = ramp;
+  if (collides(rail)) return removeObject(rail);
   objects.push(rail);
   ramp.zone.len = Math.max(ramp.zone.len, start + len + 8 - ramp.zone.d);
 }
@@ -123,16 +118,28 @@ function spawnMegaJumps(toD) {
   while (nextMegaD < toD && nextMegaD < runLength() - 170) {
     const o = makeObject(rampType, 0, nextMegaD);
     objects.push(o);
+    // Skylt i hoppets färg vid sidan av uppfarten
+    const sign = makeGradeSign(o, netX() - 1.5, o.d - 30);
+    if (!collides(sign)) objects.push(sign);
+    else removeObject(sign);
     // Ibland en rail nerför landningen, där man landar i normal fart
     const f = o.feature;
     if (f && Math.random() < 0.45) {
       const reach = (f.d2 - f.lip) / 0.68; // hopplängden i normal fart
       const x = (Math.random() - 0.5) * 2 * (netX() - 5);
       const rail = makeObject(OBSTACLES.find((t) => t.type === 'rail'), x, f.lip + reach * 0.85, { variant: 'straight', ra: 0, len: reach * 0.6 + 12 });
-      objects.push(rail);
+      rail.jump = o;
+      if (collides(rail)) removeObject(rail);
+      else objects.push(rail);
     }
     nextMegaD = (o.feature ? o.feature.d3 : nextMegaD + 120) + 60; // skogsparti mellan hoppen
   }
+}
+
+// Skylt i hoppets färg (grönt, blått, rött, svart) som i riktiga parker
+function makeGradeSign(o, x, d) {
+  const g = GRADES[o.ramp.grade];
+  return makeSign(x, d, `${g.icon} ${t('sign.jump')}`, g.color, 2.6);
 }
 
 // I ett race genereras backen från ett gemensamt frö så att båda åker samma bana (mulberry32 finns ovan)
@@ -179,18 +186,19 @@ function spawnRows(limitD) {
         const L = Math.hypot(b.x - a.x, b.d - a.d) || 1;
         return stripBlocked({ x: a.x, d: a.d, ux: (b.x - a.x) / L, ud: (b.d - a.d) / L, len: L, half: 1.5 });
       });
-      if ((!isLinear(o) && overlaps(x, d, footprint(o))) || laneBlocked || (o.zone && stripBlocked(o.zone))) {
+      if ((!isLinear(o) && overlaps(x, d, footprint(o))) || laneBlocked || (o.zone && stripBlocked(o.zone)) || collides(o)) {
         removeObject(o);
         if (o.feature) features = features.filter((f) => f !== o.feature);
         continue;
       }
       objects.push(o);
       if (o.type === 'ramp') spawnRailAfterJump(o);
-      // Varningsskylt en bit före stora hopp
-      if (o.warn || o.type === 'spine') {
-        const sx = o.x + (o.x > 0 ? -1 : 1) * ((o.ramp ? o.ramp.w : 3) + 4);
-        const sign = makeSign(sx, o.d - 24, `⚠️ ${t('sign.jump')}`, '#e65100', 2.6);
-        if (!overlaps(sign.x, sign.d, 1) && !inLandingZone(sign.x, sign.d, 1)) objects.push(sign);
+      // Skylt före hoppet: hoppets färg (spines: varning)
+      if (o.type === 'ramp' || o.type === 'spine') {
+        const sx = o.x + (o.x > 0 ? -1 : 1) * ((o.ramp ? o.ramp.w : 3) + 2);
+        const sd = o.feature.d0 - 10;
+        const sign = o.ramp ? makeGradeSign(o, sx, sd) : makeSign(sx, sd, `⚠️ ${t('sign.jump')}`, '#e65100', 2.6);
+        if (!overlaps(sign.x, sign.d, 1) && !inLandingZone(sign.x, sign.d, 1) && !blockedByLinear(sign.x, sign.d, 1.5) && !collides(sign)) objects.push(sign);
         else removeObject(sign);
       }
     }

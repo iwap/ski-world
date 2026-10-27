@@ -170,7 +170,7 @@ function spawnDecor(d0, d1) {
   if (crossed(130) && !course.mega) {
     const k = Math.floor(d1 / 130);
     const o = makeCannon(d1, k % 2 ? 1 : -1);
-    if (!overlaps(o.x, o.d, 1.5)) objects.push(o);
+    if (!overlaps(o.x, o.d, 1.5) && !collides(o)) objects.push(o);
     else removeObject(o);
   }
   if (crossed(420, 200)) objects.push(makeDeco(hutGeo, NET_X + 13, d1, -Math.PI / 2 + 0.3));
@@ -213,6 +213,65 @@ function inLandingZone(x, d, radius) {
     const e = objects[i];
     if (e.d < d - 80) break;
     if (e.zone && inStrip(e.zone, x, d, radius)) return true;
+  }
+  return false;
+}
+
+// ---------- Plats på marken: inget får stå inuti något annat ----------
+// Varje sak tar plats som cirklar (hinder, punkter längs räcken) eller rektanglar (hopp med landning, spines, rollers).
+// Lite marginal runt allt så att sakerna inte heller nuddar varandra.
+const SOLID_R = { tree: 0.6, pine: 0.5, rock: 0.8, stump: 0.4, snowman: 0.6, cannon: 0.5, sign: 0.4, star: 0.5 };
+const SHAPE_PAD = 0.3;
+
+function shapesOf(o) {
+  if (o.shapes) return o.shapes;
+  let shapes = [];
+  const f = o.feature;
+  if (f) {
+    // Halva sidosläntens bredd räknas också – annars hamnar saker halvvägs inne i snövallen
+    const w = f.half + (f.sideW || 0) * 0.5 + SHAPE_PAD;
+    shapes = [{ x0: f.x - w, x1: f.x + w, d0: f.d0 - SHAPE_PAD, d1: f.d3 + SHAPE_PAD }];
+  } else if (isLinear(o)) {
+    const n = Math.max(2, Math.ceil(o.len));
+    for (let i = 0; i <= n; i++) {
+      const q = pointAt(o, i / n);
+      shapes.push({ x: q.x, d: q.d, r: 0.6 + SHAPE_PAD });
+    }
+  } else if (SOLID_R[o.type] !== undefined) {
+    shapes = [{ x: o.x, d: o.d, r: SOLID_R[o.type] * (o.type === 'rock' ? Math.max(1, o.s) : 1) + SHAPE_PAD }];
+  }
+  o.shapes = shapes;
+  o.box = shapes.reduce((b, s) => ({
+    x0: Math.min(b.x0, s.r ? s.x - s.r : s.x0), x1: Math.max(b.x1, s.r ? s.x + s.r : s.x1),
+    d0: Math.min(b.d0, s.r ? s.d - s.r : s.d0), d1: Math.max(b.d1, s.r ? s.d + s.r : s.d1),
+  }), { x0: Infinity, x1: -Infinity, d0: Infinity, d1: -Infinity });
+  return shapes;
+}
+
+function shapesHit(a, b) {
+  if (a.r && b.r) return (a.x - b.x) ** 2 + (a.d - b.d) ** 2 < (a.r + b.r) ** 2;
+  if (!a.r && !b.r) return a.x0 < b.x1 && b.x0 < a.x1 && a.d0 < b.d1 && b.d0 < a.d1;
+  const [c, r] = a.r ? [a, b] : [b, a];
+  const nx = clamp(c.x, r.x0, r.x1);
+  const nd = clamp(c.d, r.d0, r.d1);
+  return (c.x - nx) ** 2 + (c.d - nd) ** 2 < c.r * c.r;
+}
+
+// Står det nya objektet o inuti något som redan finns? (ignore = det som o hör till, t.ex. railen på ett hopps landning)
+function collides(o, ignore = null) {
+  const A = shapesOf(o);
+  if (!A.length) return false;
+  const a = o.box;
+  for (const e of objects) {
+    if (e === o || e === ignore || e.jump === o || o.jump === e) continue;
+    const B = shapesOf(e);
+    if (!B.length) continue;
+    const b = e.box;
+    if (a.x0 > b.x1 || b.x0 > a.x1 || a.d0 > b.d1 || b.d0 > a.d1) continue;
+    // Stjärnor svävar: de får ligga över hopp och landningar (men inte i träd eller på räcken)
+    if (o.type === 'star' && (e.type === 'star' || !B[0].r)) continue;
+    if (e.type === 'star' && !A[0].r) continue;
+    if (A.some((s) => B.some((t) => shapesHit(s, t)))) return true;
   }
   return false;
 }

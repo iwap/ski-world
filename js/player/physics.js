@@ -335,24 +335,10 @@ function checkCollisions(s) {
       continue;
     }
 
+    if (o.type === 'ramp') continue; // hoppen är terräng – lyftet sker i update() när kanten passeras
     const dd = o.d - p.d;
     const dx = o.x - p.x;
-    const reach = o.type === 'ramp' ? o.ramp.l + 1.5 : 4;
-    if (Math.abs(dd) > reach || Math.abs(dx) > reach) continue;
-    if (o.type === 'ramp') {
-      // Åk uppför kickern och lyft vid kanten (dd = l där den börjar, -l vid kanten)
-      const r = o.ramp;
-      if (r.terrain) continue; // Big Air är terräng – lyftet sker i update() när kanten passeras
-      if (!p.air && Math.abs(dx) < r.w && dd < r.l && dd > -r.l) {
-        p.z = r.h * (r.l - dd) / (2 * r.l);
-        p.onRamp = o;
-      } else if (p.onRamp === o) {
-        p.onRamp = null;
-        if (!p.air && dd <= -r.l) launch((r.vz + p.speed * 0.06) * s.jumpPower);
-        else if (!p.air) launch(1, true); // åkte av sidan på kickern
-      }
-      continue;
-    }
+    if (Math.abs(dd) > 4 || Math.abs(dx) > 4) continue;
     if (o.type === 'star') {
       if (p.z < 3 && dx * dx + dd * dd < 1.3 * 1.3) {
         o.taken = true;

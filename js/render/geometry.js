@@ -179,17 +179,3 @@ function makeSnowman() {
   }
   return buildGeometry(parts);
 }
-
-// Hoppbacke: en snökil som är högst i nedförsbacke-änden, med orange markeringspinnar
-function makeRamp(w, l, h) {
-  const a = [-w, 0, l], b = [w, 0, l], c = [w, h, -l], d = [-w, h, -l], e = [-w, 0, -l], f = [w, 0, -l];
-  const tris = [a, b, c, a, c, d, d, c, f, d, f, e, a, d, e, b, f, c];
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3));
-  geo.computeVertexNormals();
-  const parts = [{ geo, color: (v, n) => (n.y > 0.5 ? C('#e4eef8') : C('#bcd0e4')) }];
-  for (const s of [-1, 1]) {
-    parts.push({ geo: new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6), matrix: m4().makeTranslation(s * w, h + 0.6, -l), color: C('#ff6d00') });
-  }
-  return buildGeometry(parts);
-}

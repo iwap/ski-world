@@ -1,0 +1,45 @@
+# Ski World – riktlinjer för Claude
+
+Skidspel i 3D (Three.js r158, vanlig JavaScript utan byggsteg). Live på https://iwap.github.io/ski-world/ – en push till `main` publiceras automatiskt via GitHub Pages. Se `README.md` för mappstrukturen.
+
+Användaren skriver på svenska: svara på svenska.
+
+## Hur koden är byggd
+
+- **Vanliga `<script>`-filer som delar globala namn.** Ordningen står i `js/load-order.txt` och måste vara exakt samma i `index.html`. En fil får bara *vid laddning* använda sådant som en tidigare fil deklarerat (funktioner som anropas senare får ligga var som helst). `const`/`let` på toppnivå har TDZ – använd dem inte innan de deklarerats. Ny fil = lägg till i båda listorna.
+- **Varje fil** börjar med `'use strict';` och en kommentarsrad om vad den innehåller. Kommentarer och namn i koden är på svenska, i samma stil som omgivande kod.
+- **Texter i gränssnittet** går alltid via `t('nyckel')` i `i18n.js`, med översättning på alla fyra språken (sv, en, es, nl). Text från andra spelare sätts med `textContent`, aldrig `innerHTML`.
+- **Inga nya beroenden eller byggverktyg.** Tredjepartsfiler ligger i `vendor/` eller laddas med exakt version.
+
+### Världen (backen)
+- Allt som påverkar hur backen genereras går genom `spawnUntil()` / `makeObject()` i `js/world/`. Under generering byts `Math.random` mot `worldRng` (mulberry32) så att samma frö ger exakt samma backe – det används av race, dagens utmaning och spöken. **Använd aldrig något annat slumpmässigt eller tidsberoende i genereringen**, och låt den inte bero på spelarens position eller val (utom via `worldStats()`).
+- `worldStats()` ger farten/hoppkraften som landningarna räknas från: spelarens värden för ett vanligt åk (sparas i `runSeed` och följer med spöket), grundvärden i race och dagens utmaning.
+- **Hopp är terräng** (`features` i `js/world/shape.js`): kicker → bord → knuckle → landning i en och samma snöbyggnad, byggd i `makeLanding()`. Svårighet enligt `RAMPS[].grade`: grönt, blått, rött – svart bara på Big Air-banan. Varje hopp har en skylt och en kantlinje i sin färg.
+- **Inget får stå inuti något annat.** Allt som placeras måste klara `collides(o)` (cirklar/rektanglar i `js/world/world.js`) utöver de äldre reglerna (`overlaps`, `blockedByLinear`, `inLandingZone`). Något som hör till ett hopp (t.ex. railen på landningen) markeras med `o.jump = hoppet`. Testet `tests/cases/overlaps.js` bygger alla banor med flera frön och ska alltid ge noll överlapp.
+
+### Spelregler som användaren har bestämt
+- Banpriser och belöning: `COURSE_PRICE` / `COURSE_REWARD` i `js/data/courses.js`. Poängen skalas med `SCORE_SCALE` och `TRICK_SCALE` (Big Air och halfpipe ger en tredjedel för tricks).
+- Ingen slowmotion. Volt-cooldown 0,25 s, kedjan nollställs efter 3 s utan nytt trick.
+- Vinnaren av ett race får dubbla pengar. Namn är unika och minst 3 tecken.
+- Tutorialen visas bara första gången någonsin.
+
+## Tester
+
+```sh
+cd tests && npm install && npm test   # laddningsordning + alla testfall i Chrome utan fönster
+node run.mjs ghosts overlaps          # bara vissa testfall
+```
+
+- Kör `npm test` före varje push. Lägg till eller uppdatera ett testfall i `tests/cases/` när du ändrar beteende – särskilt för buggar (testa att testet faktiskt fångar buggen).
+- Testfall som börjar med `online-` kör mot en låtsasserver (`tests/lib/mock-supabase.js`). Inga tester får skicka något till den riktiga servern.
+- Titta på resultatet också: ta en skärmdump med headless Chrome (`--screenshot`) av sådant som syns.
+
+## Server (Supabase) – säkerhet först
+
+- Projekt `utbeyebqsmtjwuuplzck` (gratisplanen). **Användaren vill inte kunna få kostnader:** inga betaltillägg, ingen planändring.
+- Bara den publika anon-nyckeln får finnas i koden (`config.js`). Aldrig service_role-nyckel, databaslösenord eller CLI-token – och läs inte användarens token/nyckelring.
+- `supabase.sql` är hela databasen och ska gå att köra flera gånger. Alla skrivningar sker som inloggad (anonym) spelare: RLS, egna rader via `auth.uid()`, skrivande funktioner är `security definer` med kontroller och `revoke` från `anon`, och gränser mot spam/stora data.
+- Ändringar körs med Supabase CLI från en tillfällig mapp (`supabase link --project-ref utbeyebqsmtjwuuplzck`, sedan `supabase db query --linked -f fil.sql`) och kontrolleras med `supabase db advisors --linked`. Testa regler i en transaktion som rullas tillbaka; ta aldrig bort annat än namngivna testrader.
+
+## Git
+- Committa och pusha när testerna går igenom och användaren har bett om ändringen (pushen publicerar direkt). Commit-meddelanden på engelska.

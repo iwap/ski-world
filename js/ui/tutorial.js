@@ -44,10 +44,6 @@ function startTutorial() {
     course = { ...real, rampSizes: RAMPS.map((_, i) => (i === size ? 1 : 0)) };
     const o = makeObject(rampType, 0, d);
     course = real;
-    if (o.feature) {
-      features = features.filter((f) => f !== o.feature);
-      o.feature = null;
-    }
     objects.push(o);
     if (st.rail) {
       const random = Math.random;

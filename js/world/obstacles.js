@@ -24,19 +24,25 @@ function addModel(key, geo, mat = objMat, cap = 800) {
 [3, 8].forEach((seed, i) => addModel(`rock${i}`, makeRock(seed)));
 addModel('stump', makeStump());
 addModel('snowman', makeSnowman());
-// Tre storlekar på hopp: liten kicker, mellan och stor. vz = utgångsfart uppåt (höjd ≈ vz² / 40)
+// Hoppen är byggda av snö som i en riktig park: uppfart (kicker) → bord → knuckle → landning, allt i ett.
+// Svårighet som i backarna: grönt, blått, rött – och svart bara på Big Air-banan.
+// w = kickerns halva bredd, l = halva uppfartens längd, h = kantens höjd, vz = utgångsfart uppåt (höjd ≈ vz² / 20)
 const RAMPS = [
-  { name: 'Liten kicker', w: 1.6, l: 1.8, h: 0.6, vz: 6,    weight: 50 },
-  { name: 'Hoppbacke',    w: 2.1, l: 2.5, h: 1.1, vz: 7.8,  weight: 35 },
-  { name: 'Stor kicker',  w: 2.6, l: 3.4, h: 1.7, vz: 9.6,  weight: 15, landing: 0.5 },
-  { name: 'Big Air',      w: 3.6, l: 6.0, h: 3.2, vz: 11.2, weight: 7,  landing: 1, terrain: true },
-  // Jättehopp på Big Air-banan: går över hela backens bredd så att det inte går att åka förbi
+  { name: 'Grönt hopp', grade: 'green', w: 1.8, l: 2.6, h: 0.8, vz: 6.2,  weight: 50 },
+  { name: 'Blått hopp', grade: 'blue',  w: 2.3, l: 3.4, h: 1.3, vz: 7.8,  weight: 35 },
+  { name: 'Rött hopp',  grade: 'red',   w: 2.8, l: 4.4, h: 1.9, vz: 9.4,  weight: 15 },
+  { name: 'Big Air',    grade: 'red',   w: 3.6, l: 6.0, h: 3.2, vz: 11.2, weight: 7 },
   // Jättehopp på Big Air-banan i tre storlekar: går över hela den smala backen, med ett gap före landningen
-  { name: 'Mega S', w: BIGAIR_NET + 2, l: 8,  h: 3.5, vz: 11, weight: 0, landing: 1, terrain: true, mega: true },
-  { name: 'Mega M', w: BIGAIR_NET + 2, l: 12, h: 6,   vz: 14, weight: 0, landing: 1, terrain: true, mega: true },
-  { name: 'Mega L', w: BIGAIR_NET + 2, l: 16, h: 9,   vz: 17, weight: 0, landing: 1, terrain: true, mega: true },
+  { name: 'Mega S', grade: 'blue',  w: BIGAIR_NET + 2, l: 8,  h: 3.5, vz: 11, weight: 0, mega: true },
+  { name: 'Mega M', grade: 'red',   w: BIGAIR_NET + 2, l: 12, h: 6,   vz: 14, weight: 0, mega: true },
+  { name: 'Mega L', grade: 'black', w: BIGAIR_NET + 2, l: 16, h: 9,   vz: 17, weight: 0, mega: true },
 ];
-RAMPS.forEach((r, i) => { if (!r.mega) addModel(`ramp${i}`, makeRamp(r.w, r.l, r.h)); });
+const GRADES = {
+  green: { icon: '🟢', color: '#2e7d32' },
+  blue: { icon: '🔵', color: '#1565c0' },
+  red: { icon: '🔴', color: '#c62828' },
+  black: { icon: '⚫', color: '#212121' },
+};
 addModel('star', new THREE.OctahedronGeometry(0.4).scale(1, 1.4, 0.5), starMat);
 
 const OBSTACLES = [
@@ -45,7 +51,7 @@ const OBSTACLES = [
   { type: 'rock',    weight: 13, r: 0.9,  h: 0.8, crash: 'crash.rock' },
   { type: 'stump',   weight: 6,  r: 0.45, h: 0.6, crash: 'crash.stump' },
   { type: 'snowman', weight: 4,  r: 0.6,  h: 2.0, crash: 'crash.snowman' },
-  { type: 'ramp',    weight: 9,  r: 0,    h: 0 },
+  { type: 'ramp',    weight: 9,  r: 0,    h: 0 }, // hopp: bara terräng (se RAMPS)
   { type: 'star',    weight: 8,  r: 0.7,  h: 0 },
   // Grind-objekt: ligger längs med backen, hoppa upp på dem
   { type: 'rail',    weight: 4,  r: 0.25, h: 0.7,  crash: 'crash.rail', ptsPerM: 18 },
@@ -72,7 +78,7 @@ function pickObstacle() {
   return OBSTACLES[0];
 }
 
-// Räknar ut var spelaren landar i normal fart och lägger en landningsslänt där
+// Räknar ut var spelaren landar i normal fart och bygger hoppet (kicker, bord och landning) efter det.
 // Under ett race byggs banan av grundvärden så att båda spelarna får exakt samma bana.
 // Ett vanligt åk byggs av värdena det startade med (eller spökets, så att jakten får samma bana).
 function worldStats() {
@@ -86,14 +92,13 @@ function makeLanding(o) {
   const s = worldStats();
   const v = s.cruise;
   const vz = (r.vz + v * 0.06) * s.jumpPower;
-  const peak = r.h + vz * vz / (2 * GRAVITY);
-  const H = r.mega ? r.h * 0.7 : r.terrain ? r.h * 0.9 : Math.min(4, peak * 0.45);
+  const H = r.mega ? r.h * 0.7 : r.h * 0.9; // bordet ligger strax under kanten
   // Tid från kanten (höjd h) tills man är nere på bordets höjd igen
   const tLand = (vz + Math.sqrt(Math.max(0, vz * vz + 2 * GRAVITY * (r.h - H)))) / GRAVITY;
   const dist = v * tLand;
   const lip = o.d + r.l;
   const f = {
-    x: o.x, half: r.w + 1.5, H, sideW: 4,
+    x: o.x, half: r.w + 1.5, H, sideW: 4, reach: dist,
     d0: lip + 1, d1: lip + 7,
     d2: lip + Math.max(9, dist * 0.7), // kanten
     d3: lip + dist * 1.3 + 6,          // slutet av landningen
@@ -106,37 +111,44 @@ function makeLanding(o) {
     const tAir = 0.105 * vz;
     Object.assign(f, { mega: true, H: r.h * 0.7, gap: Math.max(2.5, r.h * 0.55), d2: lip + Math.max(9, v * tAir * 0.45), d3: lip + v * tAir * 1.5 + 30 });
   }
-  if (r.terrain) {
-    // Big Air: kickern är en del av samma snöbyggnad, med flacka sidor att åka upp på
-    Object.assign(f, { kicker: true, hK: r.h, kHalf: r.w, vz: r.vz, lip, d0: o.d - r.l, d1: lip, half: r.w + 2.5, sideW: 7 });
-  }
+  // Kickern är en del av samma snöbyggnad, med flacka sidor att åka upp på (större hopp = bredare sidor)
+  Object.assign(f, { kicker: true, hK: r.h, kHalf: r.w, vz: r.vz, lip, d0: o.d - r.l, d1: lip, half: r.w + 2.5, sideW: 3 + r.h * 1.3 });
+  if (r.mega) f.sideW = 7;
   features.push(f);
   o.zone.len = Math.max(o.zone.len, f.d3 - o.zone.d + 6);
   return f;
 }
 
 const lipMarkerMat = new THREE.MeshLambertMaterial({ color: '#ff6d00' });
+const gradeMats = Object.fromEntries(Object.entries(GRADES).map(([k, g]) => [k, new THREE.MeshLambertMaterial({ color: g.color })]));
 const lipMarkerGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.6, 6).translate(0, 0.8, 0);
 
-// Orange käppar som markerar Big Air-kickerns kant
+// Käppar som markerar kickerns kant – i hoppets färg (spines: orange)
 function buildLipMarkers(o, lip = o.d + o.ramp.l, halfW = o.ramp.w + 0.3) {
+  const mat = o.ramp ? gradeMats[o.ramp.grade] : lipMarkerMat;
   const g = new THREE.Group();
   for (const s of [-1, 1]) {
-    const m = new THREE.Mesh(lipMarkerGeo, lipMarkerMat);
+    const m = new THREE.Mesh(lipMarkerGeo, mat);
     const x = o.x + s * halfW;
     m.position.set(x, groundY(x, lip - 0.3), -(lip - 0.3));
     m.castShadow = true;
     g.add(m);
   }
+  // Färgad linje över kanten, så att man ser var den är (och hur svårt hoppet är)
+  if (o.ramp) {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(o.ramp.w * 2, 0.05, 0.3), mat);
+    line.position.set(o.x, groundY(o.x, lip - 0.2) + 0.02, -(lip - 0.2));
+    g.add(line);
+  }
   scene.add(g);
   return g;
 }
 
-// Jättehoppets kant: orange linje över hela bredden + flaggor vid sidorna
+// Jättehoppets kant: en linje i hoppets färg över hela bredden + orange koner
 function buildLipLine(o) {
   const lip = o.d + o.ramp.l;
   const g = new THREE.Group();
-  const line = new THREE.Mesh(new THREE.BoxGeometry(o.ramp.w * 2, 0.06, 0.35), lipMarkerMat);
+  const line = new THREE.Mesh(new THREE.BoxGeometry(o.ramp.w * 2, 0.06, 0.35), gradeMats[o.ramp.grade]);
   line.position.set(o.x, groundY(o.x, lip - 0.25) + 0.02, -(lip - 0.25));
   g.add(line);
   for (let x = -o.ramp.w + 4; x <= o.ramp.w - 4; x += 6) {
@@ -196,19 +208,14 @@ function makeObject(t, x, d, opts = {}) {
       o.size = sizeW.findIndex((w) => (r -= w) < 0);
       if (course.moguls && o.size === 3) o.size = 2; // ingen Big Air mitt i puckelpisten
       o.ramp = RAMPS[o.size];
-      o.model = `ramp${o.size}`;
       o.rot = 0;
-      // Fri landningszon: så långt hoppet kan bära i hög fart, plus marginal
+      // Fri zon efter hoppet: så långt det kan bära i hög fart, plus marginal
       const airtime = 2 * (o.ramp.vz + 28 * 0.06) / GRAVITY;
       o.zone = { x: o.x, d: o.d + o.ramp.l, ux: 0, ud: 1, len: airtime * 26 + 10, half: 3.5 + (o.size === 3 ? 1.5 : 0) };
-      if (Math.random() < (o.ramp.landing || 0)) o.feature = makeLanding(o);
-      if (o.ramp.mega) o.mesh = buildLipLine(o);
-      else if (o.ramp.terrain) o.mesh = buildLipMarkers(o);
-      if (o.ramp.terrain) o.warn = true;
-      if (course.moguls) {
-        const end = o.feature ? o.feature.d3 : o.d + o.ramp.l + airtime * 14;
-        calmZones.push({ x: o.x, d0: o.d - 8, d1: end + 4, half: o.ramp.w + 3 });
-      }
+      o.feature = makeLanding(o);
+      o.dEnd = o.feature.d3;
+      o.mesh = o.ramp.mega ? buildLipLine(o) : buildLipMarkers(o);
+      if (course.moguls) calmZones.push({ x: o.x, d0: o.d - 8, d1: o.feature.d3 + 4, half: o.ramp.w + 3 });
       break;
     }
     case 'rail':

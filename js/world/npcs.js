@@ -97,19 +97,13 @@ function moveNpc(n, dt) {
     slope = (nx - n.x) / Math.max(0.01, n.v * dt);
     n.x = nx;
     const o = tg.o;
+    // Kickern är terräng: lyft vid kanten
     const onRamp = o.type === 'ramp' && Math.abs(n.x - o.x) < o.ramp.w;
-    // Kickern stiger jämnt från d - l till kanten vid d + l: åk upp längs ytan och luta med
-    if (onRamp && !o.ramp.terrain) {
-      const u = (n.d - (o.d - o.ramp.l)) / (2 * o.ramp.l);
-      n.z = o.ramp.h * clamp(u, 0, 1);
-      n.rampPitch = u > 0 && u < 1 ? Math.atan(o.ramp.h / (2 * o.ramp.l)) : 0;
-    }
     if (o.type === 'ramp' && n.d >= o.d + o.ramp.l) {
       n.target = null;
-      n.rampPitch = 0;
       if (onRamp) {
         const r = Math.random();
-        npcTakeOff(n, o.ramp.vz * 0.8 + 1, o.ramp.terrain ? 0.01 : o.ramp.h, r < 0.55 ? 'flip' : r < 0.85 ? 'spin' : 'grab');
+        npcTakeOff(n, o.ramp.vz * 0.8 + 1, 0.01, r < 0.55 ? 'flip' : r < 0.85 ? 'spin' : 'grab');
       } else n.z = 0;
       n.bx = n.x - n.amp * Math.sin(n.d * n.k + n.phase);
     } else if (o.type !== 'ramp' && n.d >= tg.d) {
@@ -144,7 +138,7 @@ function moveNpc(n, dt) {
     slope *= 0.2;
   }
   n.mesh.position.set(n.x, groundY(n.x, n.d) + n.z, -n.d);
-  n.mesh.rotation.set(-Math.atan(slopeAt(n.d)) * 0.8 + (n.air ? 0 : n.rampPitch || 0), -Math.atan(slope) + spin, 0);
+  n.mesh.rotation.set(-Math.atan(slopeAt(n.d)) * 0.8, -Math.atan(slope) + spin, 0);
   pivot.rotation.set(flip, 0, clamp(-slope * 0.6, -0.5, 0.5));
   // Grab: böj ihop sig lite i luften
   pivot.scale.y = n.air && n.air.trick === 'grab' ? 0.85 : 1;

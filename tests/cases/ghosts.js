@@ -16,6 +16,8 @@ runTest(async (t) => {
   const seen1 = new Set();
   play(60 * 400, collect(seen1), { invuln: true, until: () => state === 'gameover' });
   keys.clear();
+  // Boten kan ramla av ett räcke (balansen skyddas inte) – jämför bara sträckan båda åken hann se
+  const end1 = player.d;
   const g = myGhosts.park;
   t.ok(g && g.data.length > 100, 'mitt åk sparades inte som spöke');
   if (!g) return;
@@ -48,12 +50,15 @@ runTest(async (t) => {
     }
   }, { invuln: true, until: () => state === 'gameover' });
   keys.clear();
-  const missing = [...seen1].filter((k) => !seen2.has(k));
-  const extra = [...seen2].filter((k) => !seen1.has(k));
-  t.ok(seen1.size > 30, `för få hinder (${seen1.size})`);
+  const limit = Math.min(end1, player.d) + VIEW_AHEAD - 20;
+  const within = (set) => [...set].filter((k) => Number(k.split(':')[2]) < limit);
+  const missing = within(seen1).filter((k) => !seen2.has(k));
+  const extra = within(seen2).filter((k) => !seen1.has(k));
+  t.ok(within(seen1).length > 30, `för få hinder (${within(seen1).length})`);
   t.ok(!missing.length && !extra.length, `banan blev inte likadan: ${missing.length} saknas, ${extra.length} nya (${missing.slice(0, 3).join(' ')} | ${extra.slice(0, 3).join(' ')})`);
   t.ok(gapSeen, 'spökmätaren visades aldrig');
-  t.ok(follows && ghostD > 300, `spöket följer inte med (${Math.round(ghostD)} m)`);
+  const ghostEnd = ghostAt(g.data, 1e9).d;
+  t.ok(follows && ghostD > Math.min(300, ghostEnd - 10), `spöket följer inte med (${Math.round(ghostD)} av ${Math.round(ghostEnd)} m)`);
   t.ok($('go-race').textContent.includes('👻'), `ingen jämförelse med spöket (${$('go-race').textContent})`);
 
   // "Åk igen" jagar samma spöke igen
