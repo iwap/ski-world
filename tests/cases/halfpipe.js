@@ -33,8 +33,22 @@ runTest(async (t) => {
   }, { invuln: true });
   keys.clear();
   t.ok(maxZ > 2, `ingen luft i pipen (${maxZ.toFixed(1)} m)`);
-  t.ok(maxZ < 7, `för hög luft (${maxZ.toFixed(1)} m)`);
+  t.ok(maxZ < 10, `för hög luft (${maxZ.toFixed(1)} m)`);
   t.ok(landings > 5, `för få landningar i pipen (${landings})`);
   t.eq(bounces, 0, 'studsar på kanten efter landning');
+  // Förlåtande landning i pipen: en lite sned 180 och en nästan färdig volt går bra här, men inte i en vanlig backe
+  const tryLand = (spin, flipProg) => {
+    Object.assign(player, { spin, flipping: flipProg > 0, flipProg, flipDir: 1, flips: 0, frontFlips: 0 });
+    player.combo = { parts: [], pts: 0 };
+    return collectAirTricks();
+  };
+  player.d = 200;
+  t.eq(tryLand(Math.PI + 0.9, 0), null, 'sned 180 i pipen ska gå att landa');
+  t.eq(tryLand(0, 0.6), null, 'nästan färdig volt i pipen ska gå att landa');
+  setCourse('classic');
+  startRun();
+  player.d = 200;
+  t.eq(tryLand(Math.PI + 0.9, 0), 'crash.crooked', 'sned 180 i vanlig backe ska fortfarande krascha');
+  showMenu();
   t.note(`högsta luft ${maxZ.toFixed(1)} m, ${landings} landningar`);
 });

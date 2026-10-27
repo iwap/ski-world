@@ -73,7 +73,7 @@ const RARITIES = {
   epic:      { chance: 7,  refund: 6000,  color: '#8e24aa' },
   legendary: { chance: 1,  refund: 10000, color: '#ffb300' },
 };
-const BOX_PRICE = 10000;
+const BOX_PRICE = 5000;
 const ABILITY_KEYS = ['speed', 'spin', 'flip', 'land', 'air', 'tricks', 'coins', 'stars', 'grind', 'lives'];
 // Grabs: varsin tangent. Poäng per sekund man håller i.
 const GRABS = [
@@ -101,7 +101,7 @@ const BADGES = [
   { id: 'bigair',     cat: 'tricks', icon: '🚀', reward: 1000 },
   { id: 'highfive',   cat: 'tricks', icon: '✋', reward: 300 },
   { id: 'nearmiss',   cat: 'tricks', icon: '😮', reward: 300 },
-  ...['classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair'].map((c) => ({ id: `course-${c}`, cat: 'courses', course: c, reward: 1000 })),
+  ...['classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste'].map((c) => ({ id: `course-${c}`, cat: 'courses', course: c, reward: 1000 })),
   { id: 'slalomclean', cat: 'courses', icon: '🎿', reward: 2000 },
   { id: 'diff-easy',   cat: 'diff', diff: 'easy',   icon: '🟢', reward: 500 },
   { id: 'diff-normal', cat: 'diff', diff: 'normal', icon: '🔵', reward: 1000 },

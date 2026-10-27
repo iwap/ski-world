@@ -60,6 +60,7 @@ const OBSTACLES = [
   // Parkhinder i snön (ingen krock – de är en del av backen)
   { type: 'spine',   weight: 0,  r: 0,    h: 0 },
   { type: 'rollers', weight: 0,  r: 0,    h: 0 },
+  { type: 'bump',    weight: 0,  r: 0,    h: 0 }, // naturlig snöpuck i off-pist: ett litet hopp utan markeringar
   // Sådant som finns i riktiga backar
   { type: 'cannon',  weight: 0,  r: 0.35, h: 99, crash: 'crash.cannon' },
   { type: 'sign',    weight: 0,  r: 0.2,  h: 99, crash: 'crash.sign' },
@@ -200,6 +201,17 @@ function makeObject(t, x, d, opts = {}) {
       if (course.moguls) calmZones.push({ x, d0: d - 4, d1: o.feature.d3 + 2, half: 8 });
       o.dEnd = o.feature.d3;
       o.zone = { x, d, ux: 0, ud: 1, len: 4 * spacing + 6, half: 6 };
+      break;
+    }
+    case 'bump': {
+      // Upp till ett krön och sedan en lång, mjuk slänt ner att landa i
+      const H = 0.9 + Math.random() * 0.7;
+      const up = 5 + Math.random() * 2;
+      const half = 2.2 + Math.random() * 1.5;
+      o.feature = { bump: true, x, H, hK: H, half, kHalf: half, sideW: 3, d0: d, lip: d + up, d1: d + up, d3: d + up + 10 + H * 4, vz: 4.5 + H * 2 };
+      features.push(o.feature);
+      o.dEnd = o.feature.d3;
+      o.zone = { x, d: d + up, ux: 0, ud: 1, len: 24, half: 3 };
       break;
     }
     case 'ramp': {

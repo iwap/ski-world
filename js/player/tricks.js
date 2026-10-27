@@ -113,15 +113,17 @@ function collectAirTricks() {
   const p = player;
   let flips = p.flips;
   let fronts = p.frontFlips || 0;
+  // I halfpipen är landningen mer förlåtande: halvfärdiga volter och sneda spins går bra
+  const easy = inPipe(p.d) ? 1.8 : 1;
   if (p.flipping) {
-    if (p.flipProg < 0.8 - 0.3 * ability('land')) return 'crash.head';
+    if (p.flipProg < (0.8 - 0.3 * ability('land')) / easy) return 'crash.head';
     if (p.flipDir < 0) fronts++;
     else flips++;
   }
   // Varje halvvarv (180°) är ett giltigt läge – udda antal betyder att du landar baklänges
   const halves = Math.round(p.spin / Math.PI);
   const off = Math.abs(p.spin - halves * Math.PI);
-  if (off > 0.6 * (1 + ability('land')) && Math.abs(p.spin) > 1) return 'crash.crooked';
+  if (off > 0.6 * (1 + ability('land')) * easy && Math.abs(p.spin) > 1) return 'crash.crooked';
 
   const prefix = p.takeoffSwitch ? 'Switch ' : '';
   const c = p.combo;

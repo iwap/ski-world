@@ -71,7 +71,7 @@ function previewCharacter(ch) {
   $('char-pick').classList.toggle('is-locked', !owned);
 }
 
-// ---------- Karaktärsbox: snurra för 10 000, raritet avgör chansen ----------
+// ---------- Karaktärsbox: snurra för 5 000, raritet avgör chansen ----------
 const BOX_CARD = 104; // kortbredd + mellanrum i snurran (px)
 const BOX_WIN = 40;   // vinnande kortets plats i remsan
 let boxSpinning = false;

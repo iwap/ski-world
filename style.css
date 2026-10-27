@@ -1312,8 +1312,6 @@ body.touch .lift-skip { pointer-events: auto; padding: 12px; font-size: 16px; }
 .rotate-hint p { max-width: 280px; margin: 0; }
 
 /* Låsta banor */
-.course-reward { font-size: 14px; font-weight: 800; color: #ffe082; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); }
-.course-reward:empty { display: none; }
 .course-card.locked { filter: saturate(0.35) brightness(0.85); }
 .course-card.locked .course-name { opacity: 0.85; }
 .course-card.denied { animation: go-shake 0.4s ease; }
@@ -1398,6 +1396,7 @@ body.touch .lift-skip { pointer-events: auto; padding: 12px; font-size: 16px; }
   .odds-chars { font-size: 18px; }
 }
 .course-card.course-bigair { background: linear-gradient(135deg, #ff6f00, #6a1b9a); }
+.course-card.course-offpiste { background: linear-gradient(135deg, #1b5e20, #5d4037); }
 
 /* Online-party och race */
 .corner-party { background: linear-gradient(135deg, #26c6da, #3949ab) !important; color: #fff !important; border-color: #3949ab !important; }
@@ -1483,6 +1482,7 @@ body.touch .lift-skip { pointer-events: auto; padding: 12px; font-size: 16px; }
 .daily-course.course-pipe { background: linear-gradient(135deg, #1565c0, #00acc1); }
 .daily-course.course-slalom { background: linear-gradient(135deg, #c62828, #ef6c00); }
 .daily-course.course-bigair { background: linear-gradient(135deg, #ff6f00, #6a1b9a); }
+.daily-course.course-offpiste { background: linear-gradient(135deg, #1b5e20, #5d4037); }
 .daily-course-name { font-size: 26px; font-weight: 900; text-transform: uppercase; }
 .daily-next { font-size: 13px; font-weight: 700; opacity: 0.9; }
 .daily-best { font-weight: 900; margin: 6px 0; }

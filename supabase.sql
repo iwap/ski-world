@@ -10,7 +10,7 @@ create table if not exists public.scores (
   name text not null check (char_length(name) between 1 and 24),
   score integer not null check (score between 1 and 200000),
   dist integer not null check (dist between 0 and 5000),
-  course text not null check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair')),
+  course text not null check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste')),
   difficulty text not null check (difficulty in ('easy', 'normal', 'hard')),
   rider text not null check (rider in ('ski', 'board')),
   created_at timestamptz not null default now()
@@ -148,7 +148,7 @@ create policy "ski realtime write" on realtime.messages for insert to authentica
 -- Sparas bara via save_course_replay, och bara om det finns ett nyss sparat resultat med samma poäng.
 create table if not exists public.course_replays (
   player_id text not null,
-  course text not null check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair')),
+  course text not null check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste')),
   name text not null check (char_length(name) between 1 and 24),
   score integer not null check (score between 1 and 200000),
   difficulty text not null check (difficulty in ('easy', 'normal', 'hard')),
@@ -187,3 +187,12 @@ exception when check_violation then
 end $$;
 revoke all on function public.save_course_replay(text, integer, text, text, text, bigint, double precision, double precision, double precision, jsonb) from public, anon;
 grant execute on function public.save_course_replay(text, integer, text, text, text, bigint, double precision, double precision, double precision, jsonb) to authenticated;
+
+-- ---------- Off-pist-banan ----------
+-- Tabellerna fanns redan: byt ut listan med tillåtna banor (samma lista som i create table ovan)
+alter table public.scores drop constraint if exists scores_course_check;
+alter table public.scores add constraint scores_course_check
+  check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste'));
+alter table public.course_replays drop constraint if exists course_replays_course_check;
+alter table public.course_replays add constraint course_replays_course_check
+  check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste'));

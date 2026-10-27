@@ -33,10 +33,21 @@ const COURSES = {
     slope: 0.3, waves: [], bumps: 0, moguls: 0, density: 0.6, mega: true, netX: BIGAIR_NET, rampSizes: [0, 0, 0, 0, 1, 1, 1],
     weights: { tree: 30, pine: 12, rock: 0, stump: 16, snowman: 0, ramp: 0, star: 4, rail: 0, log: 0, box: 0 },
   },
+  // Off-pist: åk genom skogen. Inga byggda hopp eller räcken – bara omkullfallna träd att grinda på
+  // och naturliga snöpuckar (bump) att hoppa från
+  offpiste: {
+    // Halva längden men tre gånger så många träd (övriga hinder lika många som förut)
+    slope: 0.34, waves: [[0.1, 0.014, 0.5], [0.05, 0.037, 2]], bumps: 1.6, moguls: 0, density: 4.4, offpiste: true, lengthMult: 0.5,
+    weights: { tree: 138, pine: 54, rock: 20, stump: 14, snowman: 0, ramp: 0, star: 6, rail: 0, log: 16, box: 0, bump: 40 },
+  },
 };
 // Banorna låses upp med pengar (classic är gratis). Dyrare bana = mer pengar per åk och trick.
-const COURSE_PRICE = { classic: 0, park: 3000, moguls: 6000, pipe: 9000, slalom: 12000, bigair: 15000 };
-const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom: 2, bigair: 2.25 };
+const COURSE_PRICE = { classic: 0, park: 3000, moguls: 6000, pipe: 9000, slalom: 12000, bigair: 15000, offpiste: 18000 };
+// Poäng ×2 på alla banor utom halfpipe (×1,5) och Big Air
+const COURSE_POINTS = { classic: 2, park: 2, moguls: 2, pipe: 1.5, slalom: 2, bigair: 1, offpiste: 2 };
+// Klarar man hela banan dubblas poängen för åket
+const FINISH_MULT = 2;
+const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom: 2, bigair: 2.25, offpiste: 2.5 };
 const DIFFICULTIES = {
   // finishBonus = extra pengar för att ta sig hela vägen i mål
   easy:   { length: 1000, density: 0.6,  speed: 0.9,  balance: 0.6, points: 0.75, finishBonus: 0 },
@@ -47,4 +58,4 @@ let course = COURSES.classic;
 const netX = () => course.netX || NET_X; // avspärrningsnätens läge för den valda banan
 let difficulty = DIFFICULTIES.normal;
 // Backens längd beror på svårighetsgraden – vid målet väntar sittliften
-const runLength = () => difficulty.length;
+const runLength = () => difficulty.length * (course.lengthMult || 1);

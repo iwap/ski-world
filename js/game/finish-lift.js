@@ -190,6 +190,11 @@ function finishRun() {
     run.finishBonus = Math.round(difficulty.finishBonus * (COURSE_REWARD[save.course] || 1));
     popup(`🏅 ${t('finish.bonus', { d: t(`diff.${save.difficulty}`) })}`, `+${fmt(run.finishBonus)}`, '#b8860b');
   }
+  // Hela banan klarad: poängen för åket dubblas
+  if (!tutorial) {
+    run.finished = true;
+    popup(`✨ ${t('finish.double')}`, `×${FINISH_MULT}`, '#b8860b');
+  }
   const res = recordRun();
   p.finishRes = res;
   popup(`🏁 ${t('finish.title')}`, `+${fmt(res.total)}`, '#2e7d32');

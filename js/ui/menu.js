@@ -1,7 +1,7 @@
 'use strict';
 // Huvudmenyn: banväljaren, inställningar, språk och startskärmen.
 
-const COURSE_ICONS = { classic: '🌲', park: '🏂', moguls: '⛰️', pipe: '🌀', slalom: '🚩', bigair: '🚀' };
+const COURSE_ICONS = { classic: '🌲', park: '🏂', moguls: '⛰️', pipe: '🌀', slalom: '🚩', bigair: '🚀', offpiste: '🪵' };
 
 // Bläddra mellan banorna i menyn
 function cycleCourse(dir) {
@@ -231,8 +231,7 @@ function showMenu() {
   }
   const mult = Math.round(pointsMult() * 100) / 100;
   const bonus = Math.round((difficulty.finishBonus || 0) * (COURSE_REWARD[save.course] || 1));
-  $('course-desc').textContent = `${t(`course.${save.course}.desc`)} · ${t(`diff.${save.difficulty}`)}: ${fmt(runLength())} m, ${t('menu.pointsMult', { m: mult.toLocaleString(locale()) })}${bonus ? `, ${t('menu.finishBonus', { n: fmt(bonus) })}` : ''}`;
-  $('course-reward').textContent = COURSE_REWARD[save.course] > 1 ? t('course.reward', { m: COURSE_REWARD[save.course].toLocaleString(locale()) }) : '';
+  $('course-desc').textContent = `${t(`course.${save.course}.desc`)} · ${t(`diff.${save.difficulty}`)}: ${fmt(runLength())} m, ${t('menu.pointsMult', { m: mult.toLocaleString(locale()) })}${bonus ? `, ${t('menu.finishBonus', { n: fmt(bonus) })}` : ''}, ${t('menu.finishDouble', { m: FINISH_MULT })}`;
   const play = $('btn-play');
   play.classList.toggle('unlock', locked);
   play.classList.toggle('cant', locked && save.bank < price);

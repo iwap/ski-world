@@ -170,7 +170,7 @@ function spawnRows(limitD) {
       if (piped && kind.type !== 'star') continue; // i pipen ligger bara stjärnor
       if ((kind.type === 'ramp' || isLinear(kind)) && pipeEnv(d + 90) > 0) continue; // landningar/räcken ska inte gå in i pipen
       if (isLinear(kind) && Math.abs(x) > NET_X - 8) continue;
-      if ((kind.type === 'ramp' || isLinear(kind)) && d > runLength() - 130) continue; // landningar ska hinnas före målet
+      if ((kind.type === 'ramp' || kind.type === 'bump' || isLinear(kind)) && d > runLength() - 130) continue; // landningar ska hinnas före målet
       // Håll fritt runt räcken och stockar så att de går att åka på
       if (blockedByLinear(x, d, isLinear(kind) ? 5 : 3)) continue;
       if (BLOCKS_LANDING.has(kind.type) && inLandingZone(x, d, isLinear(kind) ? 1 : 1.5)) continue;
@@ -250,6 +250,6 @@ function resetWorld() {
 }
 
 const courseUnlocked = (id = save.course) => save.courses.includes(id);
-const pointsMult = () => difficulty.points * (COURSE_REWARD[save.course] || 1) * (1 + ability('coins'));
+const pointsMult = () => difficulty.points * (COURSE_REWARD[save.course] || 1) * (COURSE_POINTS[save.course] || 1) * (1 + ability('coins'));
 const SCORE_SCALE = 0.5; // alla poäng från åket (distans, tricks, stjärnor) halveras
-const runScore = () => Math.round((Math.floor(player.d) + run.tricks + run.stars) * pointsMult() * SCORE_SCALE) + (run.finishBonus || 0);
+const runScore = () => (Math.round((Math.floor(player.d) + run.tricks + run.stars) * pointsMult() * SCORE_SCALE) + (run.finishBonus || 0)) * (run.finished ? FINISH_MULT : 1);

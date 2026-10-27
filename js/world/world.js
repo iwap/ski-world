@@ -48,6 +48,7 @@ function footprint(o) {
     case 'star': return 0.7;
     case 'spine': return 7;
     case 'rollers': return 8;
+    case 'bump': return 6;
     case 'cannon': return 1.5;
     case 'sign': return 1;
     case 'gate': return 4;
@@ -167,14 +168,14 @@ function makeDeco(geo, x, d, rotY) {
 function spawnDecor(d0, d1) {
   if (course.pipe) return;
   const crossed = (every, offset = 0) => Math.floor((d1 - offset) / every) > Math.floor((d0 - offset) / every) && d1 > 60;
-  if (crossed(130) && !course.mega) {
+  if (crossed(130) && !course.mega && !course.offpiste) {
     const k = Math.floor(d1 / 130);
     const o = makeCannon(d1, k % 2 ? 1 : -1);
     if (!overlaps(o.x, o.d, 1.5) && !collides(o)) objects.push(o);
     else removeObject(o);
   }
   if (crossed(420, 200)) objects.push(makeDeco(hutGeo, NET_X + 13, d1, -Math.PI / 2 + 0.3));
-  if (crossed(600, 380)) objects.push(makeDeco(snowcatGeo, NET_X + 8, d1, 0.4));
+  if (crossed(600, 380) && !course.offpiste) objects.push(makeDeco(snowcatGeo, NET_X + 8, d1, 0.4));
 }
 
 // Snö från kanonerna och rök från stugornas skorstenar (bara nära åkaren)

@@ -54,6 +54,12 @@ function featureY(x, d) {
     if (lat > f.half + f.sideW) continue;
     const side = 1 - smoothstep(f.half, f.half + f.sideW, lat);
     let top;
+    if (f.bump) {
+      // Snöpuck (som en vindkant): konkav upp till krönet så att man lyfter där, sedan en mjuk slänt ner
+      top = d < f.lip ? f.H * Math.pow((d - f.d0) / (f.lip - f.d0), 1.8) : f.H * (1 - smoothstep(f.lip, f.d3, d));
+      h = Math.max(h, top * side);
+      continue;
+    }
     if (f.spine) {
       // Spine: upp till en kam och ner på andra sidan
       top = d < f.lip ? f.H * smoothstep(f.d0, f.lip, d) : f.H * (1 - smoothstep(f.lip, f.d3, d));

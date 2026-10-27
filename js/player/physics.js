@@ -314,7 +314,7 @@ function updateAir(dt, s) {
 function checkCollisions(s) {
   const p = player;
   for (const o of objects) {
-    if (o.taken || o.type === 'gate' || o.type === 'spine' || o.type === 'rollers' || o.type === 'deco') continue; // portar, terrängformer och dekor
+    if (o.taken || o.type === 'gate' || o.type === 'spine' || o.type === 'rollers' || o.type === 'bump' || o.type === 'deco') continue; // portar, terrängformer och dekor
 
     if (isLinear(o)) {
       const info = linearInfo(o, p.x, p.d);

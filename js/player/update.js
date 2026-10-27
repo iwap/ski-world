@@ -4,6 +4,8 @@
 // ---------- Halfpipe ----------
 
 // På marken i pipen: flyg upp när man når kanten på väg utåt, och vänd om man stannar på väggen
+const PIPE_LIFT = Math.sqrt(1.5); // 1,5 gånger så hög luft (höjden växer med farten i kvadrat)
+
 function updatePipe(s) {
   const p = player;
   const side = Math.sign(p.x) || 1;
@@ -14,7 +16,7 @@ function updatePipe(s) {
     const vlong = p.speed * Math.cos(p.angle);
     // Lite extra skjuts vid kanten, som när man "pumpar" i pipen. Över 10 m/s ger mer fart bara lite högre luft.
     const up = vlat + 3;
-    launch((up <= 10 ? up : 10 + (up - 10) * 0.35) * s.jumpPower);
+    launch((up <= 10 ? up : 10 + (up - 10) * 0.35) * s.jumpPower * PIPE_LIFT);
     p.pipeAir = { side, vlat: vlat + 3, a0: p.angle, vz0: p.vz };
     p.angle = 0;
     p.turnVel = 0;
@@ -64,7 +66,7 @@ function update(dt) {
     } else if (!p.onRock) {
       // Big Air-kickern: lyft när kanten passeras. Skjutsen beror på hur högt upp på kickern man
       // faktiskt var – åker man upp från den låga sidan blir det bara ett litet lyft.
-      const kick = features.find((f) => (f.kicker || f.spine) && p.prevD < f.lip && p.d >= f.lip && Math.abs(p.x - f.x) < f.kHalf + f.sideW);
+      const kick = features.find((f) => (f.kicker || f.spine || f.bump) && p.prevD < f.lip && p.d >= f.lip && Math.abs(p.x - f.x) < f.kHalf + f.sideW);
       const kickFrac = kick ? clamp(featureY(p.x, kick.lip - 0.2) / kick.hK, 0, 1) : 0;
       const bvy = db / dt;
       if (kick && kickFrac > 0.35) {
