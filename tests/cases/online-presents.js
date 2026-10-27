@@ -32,6 +32,12 @@ runTest(async (t) => {
   }
   t.ok(!$('present-toast').classList.contains('hidden'), 'meddelandet om presenterna visades inte');
   t.ok($('present-text').textContent.includes(t2('present.spawn')), 'fel text');
+  showMenu();
+  play(2);
+  t.ok(!$('present-timer').classList.contains('hidden') && /\d+:\d\d/.test($('present-timer').textContent), `nedräkningen syns inte (${$('present-timer').textContent})`);
+  t.ok($('present-timer').textContent.includes(String(PRESENT_COUNT - 2)), `antal kvar visas inte (${$('present-timer').textContent})`);
+  startRun();
+  play(2);
   spawnUntil(runLength());
   play(2);
   const mine = objects.filter((o) => o.type === 'present' && !o.taken);

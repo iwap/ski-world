@@ -74,7 +74,21 @@ function placePresents() {
   }
 }
 
+// Menyn: hur länge till nästa omgång presenter, och hur många som är kvar nu
+function updatePresentTimer() {
+  const el = $('present-timer');
+  const show = Online.on && state === 'menu';
+  el.classList.toggle('hidden', !show);
+  if (!show) return;
+  const left = Math.max(0, Math.ceil(((presents.win ?? presentWin()) + 1) * PRESENT_WINDOW - Date.now()) / 1000);
+  const time = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+  const remaining = presents.ready ? PRESENT_COUNT - presents.claimed.size : null;
+  const text = `🎅 ${t('present.timer', { time })}${remaining !== null ? ` · ${t('present.left', { n: remaining })}` : ''}`;
+  if (el.textContent !== text) el.textContent = text;
+}
+
 function updatePresents(dt) {
+  updatePresentTimer();
   if (!Online.on) return;
   const win = presentWin();
   if (win !== presents.win) {

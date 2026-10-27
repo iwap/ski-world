@@ -3,7 +3,7 @@
 
 // ---------- Slalomportar ----------
 
-const GATE_HALF = 2.6; // halva portens bredd
+const GATE_HALF = 2.1; // halva portens bredd
 const SLALOM_MAX_MISS = 3; // så många missade portar innan man blir diskad
 const gateMats = {
   red: new THREE.MeshLambertMaterial({ color: '#e53935', side: THREE.DoubleSide }),
@@ -37,7 +37,7 @@ function spawnGates(limitD) {
       lastGate = null;
       continue;
     }
-    const x = gateSide * (3.5 + Math.random() * 1.5); // portarna ligger nära mitten av den smala backen
+    const x = gateSide * (4 + Math.random() * 2.5); // sicksack över den smala backen
     const o = { type: 'gate', x, d, dEnd: d, s: 1, color: gateSide > 0 ? 'red' : 'blue', passed: false, missed: false };
     if (course.pslalom) {
       // Parallellslalom: samma port i båda banorna
@@ -60,7 +60,7 @@ function spawnGates(limitD) {
     objects.push(o);
     lastGate = o;
     gateSide = -gateSide;
-    nextGateD += 26 + Math.random() * 6;
+    nextGateD += 22 + Math.random() * 5;
   }
 }
 
@@ -69,7 +69,7 @@ function checkGates() {
   for (const o of objects) {
     if (o.type !== 'gate' || o.passed || o.missed || p.d < o.d) continue;
     if (o.lane !== undefined && race && o.lane !== race.lane) continue; // den andra spelarens bana
-    if (Math.abs(p.x - o.x) <= GATE_HALF + 0.6) { // lite förlåtande: att snudda vid stången räknas
+    if (Math.abs(p.x - o.x) <= GATE_HALF + 0.3) { // lite förlåtande: att snudda vid stången räknas
       o.passed = true;
       run.gates++;
       run.tricks += 30;

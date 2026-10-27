@@ -6,8 +6,13 @@ runTest(async (t) => {
   startRun();
   let maxX = 0;
   play(60 * 200, () => {
-    const g = objects.find((o) => o.type === 'gate' && !o.passed && !o.missed && o.d > player.d);
-    steerTo(g ? g.x : 0, Math.max(4, g ? g.d - player.d : 12));
+    const gates = objects.filter((o) => o.type === 'gate' && !o.passed && !o.missed && o.d > player.d);
+    const g = gates[0];
+    // Som en riktig åkare: sikta på porten men börja svänga mot nästa precis innan, och bromsa lite i höga farter
+    const aim = g && gates[1] && g.d - player.d < 2.5 && Math.abs(player.x - g.x) < GATE_HALF ? gates[1] : g;
+    steerTo(aim ? aim.x : 0, Math.max(4, aim ? aim.d - player.d : 12));
+    keys.delete('ArrowDown');
+    if (g && player.speed > 12 && Math.abs(g.x - player.x) > 4 && g.d - player.d < 14) keys.add('ArrowDown');
     maxX = Math.max(maxX, Math.abs(player.x));
   }, { invuln: true, until: () => state !== 'playing' });
   keys.clear();

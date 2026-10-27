@@ -1475,6 +1475,7 @@ body.touch .lift-skip { pointer-events: auto; padding: 12px; font-size: 16px; }
 .sessres-text { white-space: pre-line; font-size: 18px; font-weight: 800; line-height: 1.6; }
 .race-hud { white-space: pre-line; }
 .race-res { white-space: pre-line; }
+.present-timer { margin: 12px auto 0; padding: 10px 18px; width: fit-content; max-width: 100%; border-radius: 16px; font-weight: 900; font-size: 20px; color: #fff; background: linear-gradient(135deg, #c62828, #2e7d32); box-shadow: 0 6px 18px rgba(198, 40, 40, 0.35); font-variant-numeric: tabular-nums; }
 .daily-btn { margin-top: 10px; padding: 8px 18px; border-radius: 999px; font-weight: 900; background: linear-gradient(180deg, #4dd0e1, #00838f) !important; color: #fff !important; border-color: #00838f !important; box-shadow: 0 4px 12px rgba(0, 131, 143, 0.35); }
 .theme-daily .ui-head { background: linear-gradient(135deg, #26c6da, #00838f); }
 .daily-course { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #2e7d32, #1565c0); }

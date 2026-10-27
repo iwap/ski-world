@@ -70,7 +70,7 @@ const ability = (key) => ((CHARACTERS.find((c) => c.id === save.character) || CH
 function stats() {
   const u = save.upgrades;
   return {
-    cruise: Math.min(100, (50 + u.skis * 10) * difficulty.speed) * KMH * (1 + ability('speed')), // fart rakt ner – också starthastigheten
+    cruise: Math.min(100, (50 + u.skis * 10) * difficulty.speed) * KMH * (1 + ability('speed')) * (course.speed || 1), // fart rakt ner – också starthastigheten
     pull: (6 + u.wax * 1.5) * (1 + ability('speed')), // hur hårt backen drar (acceleration)
     turnRate: (1.7 + u.boots * 0.2) * (isBoard() ? 0.92 : 1) * clamp(save.turnSens || 1, 0.5, 2), // svängkänslighet från inställningarna
     jumpPower: (1 + u.binding * 0.025) * (1 + ability('air')),

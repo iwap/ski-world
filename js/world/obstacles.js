@@ -96,7 +96,7 @@ function pickObstacle() {
 function worldStats() {
   if (runSeed && !race && !daily && !tutorial) return runSeed.ws;
   if (!worldRng) return stats();
-  return { cruise: Math.min(100, 50 * difficulty.speed) * KMH, jumpPower: 1 };
+  return { cruise: Math.min(100, 50 * difficulty.speed) * KMH * (course.speed || 1), jumpPower: 1 };
 }
 
 function makeLanding(o) {

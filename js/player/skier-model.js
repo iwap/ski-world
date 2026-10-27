@@ -252,17 +252,6 @@ function makeCostumes(add, mat, head, upper, mats) {
   add(new THREE.SphereGeometry(0.095, 12, 10), hairM, 0, -0.09, -0.06, g).scale.set(1.15, 1.3, 0.7);
   for (const sx of [-1, 1]) add(new THREE.CapsuleGeometry(0.018, 0.12, 4, 8), hairM, sx * 0.035, -0.2, -0.07, g);
 
-  // Zombie: olika stora ögon, sydda ärr och trasig mun
-  g = group('zombie', head);
-  add(new THREE.SphereGeometry(0.026, 10, 8), mat('#fffde7'), -0.042, 0.02, -0.1, g);
-  add(new THREE.SphereGeometry(0.011, 8, 6), mat('#b71c1c'), -0.042, 0.02, -0.124, g);
-  add(new THREE.SphereGeometry(0.014, 8, 6), black, 0.042, 0.018, -0.108, g);
-  add(new THREE.BoxGeometry(0.07, 0.022, 0.01), mat('#3e2723'), 0, -0.045, -0.108, g).rotation.z = 0.12;
-  for (const sx of [-0.02, 0.012]) add(new THREE.BoxGeometry(0.012, 0.014, 0.012), mat('#fff8e1'), sx, -0.038, -0.112, g);
-  add(new THREE.BoxGeometry(0.11, 0.006, 0.01), black, 0.01, 0.08, -0.095, g).rotation.z = -0.3;
-  for (let k = 0; k < 4; k++) add(new THREE.BoxGeometry(0.005, 0.022, 0.01), black, -0.035 + k * 0.025, 0.08 - k * 0.0075 + 0.001, -0.098, g);
-  add(new THREE.SphereGeometry(0.119, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.32), mat('#33291f', { roughness: 1 }), 0, 0.02, 0.01, g).scale.set(1.02, 1.1, 1.06);
-
   // Astronaut: glashjälm med guldvisir, krage och kontrollpanel på bröstet
   g = group('astro', head);
   add(new THREE.SphereGeometry(0.175, 24, 18), new THREE.MeshStandardMaterial({ color: '#e3f2fd', transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.2, depthWrite: false }), 0, 0.01, 0, g).castShadow = false;

@@ -39,7 +39,7 @@ const COURSES = {
     // Halva längden, smal och tät skog. Djup pudersnö, små puckar överallt och ibland en klippa över hela bredden.
     // density är lägre än den ser ut: hindren sprids på en mycket smalare yta (netX) än på de breda banorna
     slope: 0.34, waves: [[0.1, 0.014, 0.5], [0.05, 0.037, 2]], bumps: 1.6, lumps: 0.25, moguls: 0, density: 2.25,
-    offpiste: true, powder: true, cliffs: true, lengthMult: 0.5, netX: 27,
+    offpiste: true, powder: true, cliffs: true, lengthMult: 0.5, netX: 27, speed: 0.75, // 25 % långsammare i djupsnön
     weights: { tree: 138, pine: 54, rock: 20, stump: 14, snowman: 0, ramp: 0, star: 6, rail: 0, log: 16, box: 0, bump: 70 },
   },
 };
