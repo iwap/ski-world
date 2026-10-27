@@ -142,6 +142,35 @@ const hutGeo = (() => {
   return buildGeometry(parts);
 })();
 
+// Liten stuga i off-pist (nocken längs backen). Väggarna går en bit ner i snön så att den står stadigt i lutningen.
+const CABIN = { halfW: 1.9, halfL: 2.4, eave: 1.96, ridge: 3.12 };
+const cabinGeo = (() => {
+  const wood = C('#8d6e63');
+  const dark = C('#5d4037');
+  const roof = C('#7b2d26');
+  const parts = [
+    { geo: new THREE.BoxGeometry(3.4, 3.6, 4.4).translate(0, 0.2, 0), color: (v) => (Math.round(v.y * 3) % 2 ? wood : dark) },
+    { geo: new THREE.BoxGeometry(0.9, 0.8, 0.1), matrix: m4().makeTranslation(0, 1.2, -2.22), color: C('#ffe082') }, // fönster mot backen
+    { geo: new THREE.BoxGeometry(0.1, 0.8, 0.9), matrix: m4().makeTranslation(1.72, 1.2, 0), color: C('#ffe082') },
+    { geo: new THREE.BoxGeometry(0.1, 0.8, 0.9), matrix: m4().makeTranslation(-1.72, 1.2, 0), color: C('#ffe082') },
+    // Gavlarna upp till nocken
+    // (ett trekantigt prisma: spetsen uppåt, 3,5 m bred bas och 1,1 m hög)
+    { geo: new THREE.CylinderGeometry(2.02, 2.02, 4.4, 3).rotateX(Math.PI / 2).rotateZ(Math.PI).scale(1, 1.1 / 3.03, 1), matrix: m4().makeTranslation(0, 2.37, 0), color: wood },
+  ];
+  // Sadeltak med tjock snö ovanpå
+  for (const s of [-1, 1]) {
+    parts.push({ geo: new THREE.BoxGeometry(2.1, 0.2, 4.8), matrix: m4().makeRotationZ(-s * 0.55).setPosition(s * 0.85, 2.5, 0), color: (v, n) => (n.y > 0.5 ? SNOW : roof) });
+  }
+  return buildGeometry(parts);
+})();
+
+// Takets höjd över stugans golv vid (x, d), eller -1 utanför taket
+function cabinRoof(o, x, d) {
+  const u = Math.abs(x - o.x);
+  if (u > CABIN.halfW || Math.abs(d - o.d) > CABIN.halfL) return -1;
+  return CABIN.ridge - u * (CABIN.ridge - CABIN.eave) / CABIN.halfW;
+}
+
 const snowcatGeo = buildGeometry([
   { geo: new THREE.BoxGeometry(2.6, 1.2, 4).translate(0, 1.3, 0), color: C('#d32f2f') },
   { geo: new THREE.BoxGeometry(2.2, 1.2, 1.8).translate(0, 2.5, -0.5), color: C('#c62828') },
@@ -234,6 +263,8 @@ function shapesOf(o) {
     shapes = f.cliff
       ? [{ x0: f.x - w, x1: f.x + w, d0: f.lip - 8, d1: f.d3 + f.land }] // fritt före kanten och nedanför (där man landar)
       : [{ x0: f.x - w, x1: f.x + w, d0: f.d0 - SHAPE_PAD, d1: f.d3 + SHAPE_PAD }];
+  } else if (o.type === 'hut') {
+    shapes = [{ x0: o.x - CABIN.halfW - SHAPE_PAD, x1: o.x + CABIN.halfW + SHAPE_PAD, d0: o.d - CABIN.halfL - SHAPE_PAD, d1: o.d + CABIN.halfL + SHAPE_PAD }];
   } else if (isLinear(o)) {
     const n = Math.max(2, Math.ceil(o.len));
     for (let i = 0; i <= n; i++) {

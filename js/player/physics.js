@@ -1,7 +1,7 @@
 'use strict';
 // Åkfysik: landning, grind, svängar, luft och krockar.
 
-function landOnRock(o, top) {
+function landOnRock(o, top, label = 'Rock tap', pts = 20) {
   const p = player;
   const fail = collectAirTricks();
   if (fail) return crash(fail);
@@ -10,9 +10,9 @@ function landOnRock(o, top) {
   p.vz = 0;
   p.z = top;
   p.squash = 0.6;
-  p.combo.parts.push('Rock tap');
+  p.combo.parts.push(label);
   Sound.rockTap();
-  p.combo.pts += 20;
+  p.combo.pts += pts;
   const f = feet();
   burst(f.x, f.y + top, f.z, 20, 2.5, 0.4);
 }
@@ -364,6 +364,27 @@ function checkCollisions(s) {
         burst(o.x - dx * 0.4, groundY(o.x, o.d) + 1.6, -(o.d - dd * 0.4), 18, 2, 0.3);
         continue;
       }
+    }
+    if (o.type === 'hut') {
+      // Stugan: landa på taket och åk längs nocken – kör du in i väggen kraschar du
+      const roof = cabinRoof(o, p.x, p.d);
+      const top = roof < 0 ? 0 : groundY(o.x, o.d) + roof - groundY(p.x, p.d);
+      if (p.onRock === o) {
+        if (roof < 0) leaveRock();
+        else p.z = top;
+        continue;
+      }
+      if (roof < 0) continue;
+      if (p.air && p.vz <= 0 && p.z <= top + 0.1 && p.z >= top - 0.7) {
+        landOnRock(o, top, 'Roof ride', 60);
+        if (state !== 'playing') return;
+        continue;
+      }
+      if (p.invuln <= 0 && p.z < top - 0.7) {
+        crash(o.crash, o);
+        return;
+      }
+      continue;
     }
     if (o.type === 'rock') {
       // Stenen är en rundad kupol: landa på den och åk över. Kör du in i den från sidan kraschar du.

@@ -38,15 +38,15 @@ const COURSES = {
   offpiste: {
     // Halva längden, smal och tät skog. Djup pudersnö, små puckar överallt och ibland en klippa över hela bredden.
     // density är lägre än den ser ut: hindren sprids på en mycket smalare yta (netX) än på de breda banorna
-    slope: 0.34, waves: [[0.1, 0.014, 0.5], [0.05, 0.037, 2]], bumps: 1.6, lumps: 0.25, moguls: 0, density: 1.4,
-    offpiste: true, powder: true, cliffs: true, lengthMult: 0.5, netX: 18,
+    slope: 0.34, waves: [[0.1, 0.014, 0.5], [0.05, 0.037, 2]], bumps: 1.6, lumps: 0.25, moguls: 0, density: 2.25,
+    offpiste: true, powder: true, cliffs: true, lengthMult: 0.5, netX: 27,
     weights: { tree: 138, pine: 54, rock: 20, stump: 14, snowman: 0, ramp: 0, star: 6, rail: 0, log: 16, box: 0, bump: 70 },
   },
 };
 // Banorna låses upp med pengar (classic är gratis). Dyrare bana = mer pengar per åk och trick.
 const COURSE_PRICE = { classic: 0, park: 3000, moguls: 6000, pipe: 9000, slalom: 12000, bigair: 15000, offpiste: 18000 };
-// Poäng ×2 på alla banor utom halfpipe (×1,5) och Big Air
-const COURSE_POINTS = { classic: 2, park: 2, moguls: 2, pipe: 1.5, slalom: 2, bigair: 1, offpiste: 2 };
+// Poäng ×2 på alla banor utom halfpipe (×1,5)
+const COURSE_POINTS = { classic: 2, park: 2, moguls: 2, pipe: 1.5, slalom: 2, bigair: 2, offpiste: 2 };
 // Klarar man hela banan dubblas poängen för åket
 const FINISH_MULT = 2;
 const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom: 2, bigair: 2.25, offpiste: 2.5 };

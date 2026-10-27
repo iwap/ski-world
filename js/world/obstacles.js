@@ -62,6 +62,7 @@ const OBSTACLES = [
   { type: 'rollers', weight: 0,  r: 0,    h: 0 },
   { type: 'bump',    weight: 0,  r: 0,    h: 0 }, // naturlig snöpuck i off-pist: ett litet hopp utan markeringar
   { type: 'cliff',   weight: 0,  r: 0,    h: 0 }, // klippa över hela bredden i off-pist
+  { type: 'hut',     weight: 0,  r: 0,    h: 0, crash: 'crash.hut' }, // liten stuga efter ett hopp i off-pist – landa på taket
   // Sådant som finns i riktiga backar
   { type: 'cannon',  weight: 0,  r: 0.35, h: 99, crash: 'crash.cannon' },
   { type: 'sign',    weight: 0,  r: 0.2,  h: 99, crash: 'crash.sign' },
@@ -174,7 +175,7 @@ function buildCliffFace(o) {
     const h = f.H * (0.75 + Math.random() * 0.35);
     m.scale.set(0.9 + Math.random() * 0.8, h / 1.3, 0.6 + Math.random() * 0.5);
     const dd = f.lip + (f.d3 - f.lip) * (0.4 + Math.random() * 0.5);
-    m.position.set(x, baseY(f.d3) + f.H - h * 0.75 + Math.random() * 0.3, -dd);
+    m.position.set(x, baseY(f.d3) + f.H - h * 0.95 + Math.random() * 0.2, -dd); // toppen i höjd med kanten
     m.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.3);
     m.castShadow = true;
     m.receiveShadow = true;
@@ -245,6 +246,16 @@ function makeObject(t, x, d, opts = {}) {
       features.push(o.feature);
       o.dEnd = o.feature.d3;
       o.zone = { x, d: d + up, ux: 0, ud: 1, len: 24, half: 2.5 };
+      break;
+    }
+    case 'hut': {
+      // Nocken går nedför backen så att man kan åka längs taket
+      o.rot = 0;
+      o.mesh = new THREE.Mesh(cabinGeo, objMat);
+      o.mesh.position.set(x, groundY(x, d), -d);
+      o.mesh.castShadow = true;
+      o.mesh.receiveShadow = true;
+      scene.add(o.mesh);
       break;
     }
     case 'cliff': {

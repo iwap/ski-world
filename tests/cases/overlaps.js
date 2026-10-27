@@ -13,6 +13,7 @@ runTest(async (t) => {
       return [{ kind: 'rect', x0: f.x - f.half, x1: f.x + f.half, d0: f.d0, d1: f.d3 }];
     }
     if (o.type === 'ramp') return [{ kind: 'rect', x0: o.x - o.ramp.w, x1: o.x + o.ramp.w, d0: o.d - o.ramp.l, d1: o.d + o.ramp.l }];
+    if (o.type === 'hut') return [{ kind: 'rect', x0: o.x - CABIN.halfW, x1: o.x + CABIN.halfW, d0: o.d - CABIN.halfL, d1: o.d + CABIN.halfL }];
     if (o.type === 'cliff') {
       const f = o.feature;
       return [{ kind: 'rect', x0: f.x - f.half, x1: f.x + f.half, d0: f.lip - 8, d1: f.d3 + f.land }];

@@ -139,6 +139,14 @@ function spawnMegaJumps(toD) {
   }
 }
 
+// Off-pist: ibland en liten stuga där man landar efter ett hopp (klippa eller snöpuck)
+function spawnHutAfter(jump, x, d) {
+  const hut = makeObject(OBSTACLES.find((t) => t.type === 'hut'), x, d);
+  hut.jump = jump;
+  if (Math.abs(x) > netX() - 3 || d > runLength() - 40 || collides(hut)) return removeObject(hut);
+  objects.push(hut);
+}
+
 // Off-pist: ibland en klippa över hela bredden – man kan inte åka förbi, bara hoppa
 let nextCliffD = 0;
 function spawnCliffs(toD) {
@@ -156,6 +164,8 @@ function spawnCliffs(toD) {
       return;
     }
     objects.push(o);
+    const f = o.feature;
+    if (Math.random() < 0.5) spawnHutAfter(o, (Math.random() - 0.5) * 2 * (netX() - 5), f.d3 + 6 + f.H * 1.2);
     nextCliffD = Math.max(nextCliffD, o.feature.lip + 60);
   }
 }
@@ -221,6 +231,7 @@ function spawnRows(limitD) {
       }
       objects.push(o);
       if (o.type === 'ramp') spawnRailAfterJump(o);
+      if (o.type === 'bump' && Math.random() < 0.25) spawnHutAfter(o, o.x, o.feature.lip + 12);
       // Skylt före hoppet: hoppets färg (spines: varning)
       if (o.type === 'ramp' || o.type === 'spine') {
         const sx = o.x + (o.x > 0 ? -1 : 1) * ((o.ramp ? o.ramp.w : 3) + 2);

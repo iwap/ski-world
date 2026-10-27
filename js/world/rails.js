@@ -206,7 +206,7 @@ function buildBox(o) {
 }
 
 const dummy = new THREE.Object3D();
-const NO_MODEL = new Set(['gate', 'ramp', 'spine', 'rollers', 'bump', 'cliff', 'cannon', 'sign', 'deco']); // egna meshar eller bara terräng
+const NO_MODEL = new Set(['gate', 'ramp', 'spine', 'rollers', 'bump', 'cliff', 'hut', 'cannon', 'sign', 'deco']); // egna meshar eller bara terräng
 const WHITE = new THREE.Color(1, 1, 1);
 
 function syncInstances(time) {
