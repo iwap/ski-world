@@ -2,7 +2,7 @@
 runTest(async (t) => {
   save.bank = 50000;
   const screens = [
-    ['menu', () => showMenu()], ['shop', () => showShop()], ['settings', () => showSettings()], ['help', () => showHelp()],
+    ['menu', () => showMenu()], ['shop', () => showShop()], ['customize', () => showCustomize()], ['settings', () => showSettings()], ['help', () => showHelp()],
     ['board', () => showBoard('classic')], ['badges', () => showBadges()], ['characters', () => showCharacters()],
     ['box', () => showBox()], ['party', () => showParty()], ['daily', () => showDaily()],
     ['tutask', () => showOverlay('tutask')], ['reset1', () => showOverlay('reset1')], ['reset2', () => showOverlay('reset2')],

@@ -3,11 +3,11 @@
 
 // ---------- Skärmar ----------
 
-const OVERLAYS = ['intro', 'menu', 'shop', 'gameover', 'pause', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2', 'daily', 'sessres'];
+const OVERLAYS = ['intro', 'menu', 'shop', 'customize', 'gameover', 'pause', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2', 'daily', 'sessres'];
 
 function showOverlay(name) {
   for (const id of OVERLAYS) $(id).classList.toggle('hidden', id !== name);
-  $('hud').classList.toggle('hidden', ['intro', 'menu', 'shop', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2', 'daily', 'sessres'].includes(name));
+  $('hud').classList.toggle('hidden', ['intro', 'menu', 'shop', 'customize', 'board', 'settings', 'help', 'characters', 'badges', 'box', 'party', 'tutask', 'reset1', 'reset2', 'daily', 'sessres'].includes(name));
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (name) focusDefault(name);
 }

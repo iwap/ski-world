@@ -83,6 +83,7 @@
       <button id="btn-badges" class="corner-btn corner-wide corner-gold"><span class="ico">🏅</span><span data-i18n="menu.badges">Badges</span><span id="badge-dot" class="badge-dot hidden">0</span></button>
       <button id="btn-party" class="corner-btn corner-party"><span class="ico">👥</span><span data-i18n="menu.party">Online</span><span id="party-dot" class="badge-dot hidden">0</span></button>
       <button id="btn-shop" class="corner-btn"><span class="ico">🛒</span><span data-i18n="btn.shop">Butik</span></button>
+      <button id="btn-customize" class="corner-btn"><span class="ico">🎨</span><span data-i18n="menu.customize">Customize</span></button>
       <button id="btn-board" class="corner-btn"><span class="ico">🏆</span><span data-i18n="btn.board">Topplista</span></button>
       <button id="btn-settings" class="corner-btn"><span class="ico">⚙️</span><span data-i18n="menu.settings">Inställningar</span></button>
       <button id="btn-help" class="corner-btn"><span class="ico">❓</span><span data-i18n="menu.help">Kontroller</span></button>
@@ -299,7 +300,7 @@
         <tr><td data-i18n="touch.jump">HOPP</td><td data-i18n="touch.h.jump">Hoppa</td></tr>
         <tr><td>▲</td><td data-i18n="touch.h.front">Framåtvolt i luften</td></tr>
         <tr><td>▼</td><td data-i18n="touch.h.back">Bromsa – i luften: bakåtvolt</td></tr>
-        <tr><td>🤙</td><td data-i18n="touch.h.grab">Grab. Håll ▶ ▲ ▼ samtidigt för Japan, Chinese och Tail – ◀ för cork</td></tr>
+        <tr><td>🤙</td><td data-i18n="touch.h.grab">Grab. Håll ◀ ▲ ▼ samtidigt för Japan, Chinese och Tail – ▶ för cork</td></tr>
         <tr><td>⬇</td><td data-i18n="touch.h.tuck">Ducka för mer fart</td></tr>
         <tr><td>🔄</td><td data-i18n="touch.h.switch">Vänd – åk baklänges / framlänges</td></tr>
         <tr><td>🎥 ⏸</td><td data-i18n="touch.h.top">Byt kameravy · paus</td></tr>
@@ -309,8 +310,8 @@
         <tr><td><kbd>↓</kbd></td><td data-i18n="ctrl.brake">Bromsa (i luften: bakåtvolt)</td></tr>
         <tr><td><kbd>↑</kbd></td><td data-i18n="ctrl.frontflip">Framåtvolt (i luften)</td></tr>
         <tr><td><kbd>T</kbd></td><td data-i18n="ctrl.tuck">Ducka för mer fart</td></tr>
-        <tr><td><kbd>G</kbd></td><td data-i18n="ctrl.cork">Cork i luften (snett snurr)</td></tr>
-        <tr><td><kbd>F</kbd><kbd>R</kbd><kbd>V</kbd><kbd>Q</kbd></td><td data-i18n="ctrl.grab">Grabs i luften: Indy, Japan, Chinese, Tail</td></tr>
+        <tr><td><kbd>R</kbd></td><td data-i18n="ctrl.cork">Cork i luften (snett snurr)</td></tr>
+        <tr><td><kbd>F</kbd><kbd>G</kbd><kbd>V</kbd><kbd>Q</kbd></td><td data-i18n="ctrl.grab">Grabs i luften: Indy, Japan, Chinese, Tail</td></tr>
         <tr><td><kbd>X</kbd></td><td data-i18n="ctrl.switch">Vänd – åk baklänges / framlänges</td></tr>
         <tr><td><kbd>Space</kbd></td><td data-i18n="ctrl.jump">Hoppa – eller ta fart över en hoppbacke</td></tr>
         <tr><td data-i18n="ctrl.grindLabel">Grind</td><td data-i18n-html="ctrl.grind"></td></tr>
@@ -331,11 +332,23 @@
         <div class="coin-chip"><span class="coin-label" data-i18n="menu.toSpend">Poäng att spendera:</span> <span aria-hidden="true">🪙</span> <b id="shop-bank">0</b></div></header>
       <h3 data-i18n="shop.gear">Utrustning</h3>
       <div id="shop-items"></div>
-      <h3 data-i18n="shop.style">Stil</h3>
-      <div id="shop-styles"></div>
       <div class="buttons ui-foot">
         <button id="btn-shop-back" data-i18n="btn.back">Tillbaka</button>
         <button id="btn-shop-play" class="primary" data-i18n="btn.play">Åk!</button>
+      </div>
+      <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
+    </div>
+  </div>
+
+  <div id="customize" class="overlay hidden char-screen">
+    <div class="panel ui-panel theme-shop char-panel custom-panel">
+      <header class="ui-head"><span class="ui-ico" aria-hidden="true">🎨</span><h2 data-i18n="menu.customize">Customize</h2>
+        <div class="coin-chip"><span class="coin-label" data-i18n="menu.toSpend">Poäng att spendera:</span> <span aria-hidden="true">🪙</span> <b id="custom-bank">0</b></div></header>
+      <p class="small custom-note"><span data-i18n="custom.note">Jacka och byxor gäller karaktären du har valt:</span> <b id="custom-char"></b></p>
+      <div id="custom-styles"></div>
+      <div class="buttons ui-foot">
+        <button id="btn-custom-back" data-i18n="btn.back">Tillbaka</button>
+        <button id="btn-custom-play" class="primary" data-i18n="btn.play">Åk!</button>
       </div>
       <p class="small keys-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span> · <kbd>Esc</kbd> <span data-i18n="keys.back">tillbaka</span></p>
     </div>
@@ -429,6 +442,7 @@
   <script src="js/online/supabase.js"></script>
   <script src="js/ui/leaderboard.js"></script>
   <script src="js/ui/shop.js"></script>
+  <script src="js/ui/customize.js"></script>
   <script src="js/game/run.js"></script>
   <script src="js/ui/name.js"></script>
   <script src="js/ui/popup.js"></script>

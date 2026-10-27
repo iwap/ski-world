@@ -9,7 +9,7 @@ function virtualDown(code) {
   keys.add(code);
 }
 
-// Grab-knappen: riktningen du håller samtidigt väljer grab (ingen = Indy). ◀ = cork.
+// Grab-knappen: riktningen du håller samtidigt väljer grab (ingen = Indy). ▶ = cork.
 function touchGrabKey() {
   if (keys.has('ArrowLeft')) return 'KeyG';
   if (keys.has('ArrowRight')) return 'KeyR';

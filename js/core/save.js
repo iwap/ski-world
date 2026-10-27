@@ -5,7 +5,7 @@ function loadSave() {
   const fresh = {
     bank: 0, best: 0, bestDist: 0, upgrades: {},
     owned: STYLES.filter((st) => st.cost === 0).map((st) => st.id),
-    style: { jacket: 'jacket-orange', helmet: 'helmet-blue', gear: 'gear-blue', poles: 'poles-none' },
+    style: { jacket: 'jacket-orange', helmet: 'helmet-blue', gear: 'gear-blue', poles: 'poles-none', wrap: 'wrap-none' },
     rider: 'ski', character: 'classic', badges: {}, badgeProg: {}, courses: ['classic'], course: 'classic', difficulty: 'normal', night: false, fpv: false, lift: true, helmetOn: true, turnSens: 1, lang: detectLang(), name: '', leaderboard: [], audio: { music: true, sfx: true, song: 0 },
   };
   try {
@@ -35,6 +35,7 @@ function loadSave() {
   fresh.chars = fresh.chars.filter((id) => CHARACTERS.some((c) => c.id === id));
   if (!fresh.chars.includes(fresh.character)) fresh.character = 'classic';
   if (!fresh.badges || typeof fresh.badges !== 'object') fresh.badges = {};
+  if (!fresh.look || typeof fresh.look !== 'object') fresh.look = {}; // Customize: { karaktär: { jacket, pants } }
   if (!fresh.badgeProg || typeof fresh.badgeProg !== 'object') fresh.badgeProg = {};
   if (!LANGS[fresh.lang]) fresh.lang = detectLang();
   fresh.audio = { music: true, sfx: true, song: 0, ...(fresh.audio || {}) };

@@ -21,6 +21,7 @@ ui/characters.js
 online/supabase.js
 ui/leaderboard.js
 ui/shop.js
+ui/customize.js
 game/run.js
 ui/name.js
 ui/popup.js

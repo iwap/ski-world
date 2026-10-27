@@ -20,6 +20,7 @@ const STYLE_CATS = [
   { id: 'helmet' },
   { id: 'gear' },
   { id: 'poles' },
+  { id: 'wrap' },
 ];
 const STYLES = [
   { id: 'jacket-orange', cat: 'jacket', name: 'color.orange', color: '#d84315', cost: 0 },
@@ -38,12 +39,37 @@ const STYLES = [
   { id: 'gear-purple',   cat: 'gear',   name: 'color.purple', color: '#7b1fa2', cost: 4000 },
   { id: 'gear-wood',     cat: 'gear',   name: 'color.wood', color: '#a1734a', cost: 7000 },
   { id: 'gear-white',    cat: 'gear',   name: 'color.white', color: '#fafafa', cost: 10000 },
+  { id: 'pants-navy',    cat: 'pants',  name: 'color.navy', color: '#1a237e', cost: 1500 },
+  { id: 'pants-black',   cat: 'pants',  name: 'color.black', color: '#1b1b1b', cost: 1500 },
+  { id: 'pants-grey',    cat: 'pants',  name: 'color.grey', color: '#616161', cost: 2000 },
+  { id: 'pants-white',   cat: 'pants',  name: 'color.white', color: '#f5f5f5', cost: 3000 },
+  { id: 'pants-red',     cat: 'pants',  name: 'color.red', color: '#c62828', cost: 3000 },
+  { id: 'pants-green',   cat: 'pants',  name: 'color.forest', color: '#2e7d32', cost: 4000 },
+  { id: 'pants-pink',    cat: 'pants',  name: 'color.neonpink', color: '#e91e63', cost: 6000 },
+  { id: 'pants-gold',    cat: 'pants',  name: 'color.gold', color: '#c9a227', cost: 20000 },
+  { id: 'jacket-red',    cat: 'jacket', name: 'color.red', color: '#c62828', cost: 3000 },
+  { id: 'jacket-white',  cat: 'jacket', name: 'color.white', color: '#f5f5f5', cost: 5000 },
+  { id: 'jacket-purple', cat: 'jacket', name: 'color.purple', color: '#7b1fa2', cost: 6000 },
+  { id: 'wrap-none',     cat: 'wrap',   name: 'color.none', color: 'transparent', cost: 0 },
+  { id: 'wrap-ducks',    cat: 'wrap',   name: 'wrap.ducks', icon: '🦆', color: '#4fc3f7', cost: 3000 },
+  { id: 'wrap-snow',     cat: 'wrap',   name: 'wrap.snow', icon: '❄️', color: '#0277bd', cost: 3000 },
+  { id: 'wrap-hearts',   cat: 'wrap',   name: 'wrap.hearts', icon: '❤️', color: '#f8bbd0', cost: 4000 },
+  { id: 'wrap-stars',    cat: 'wrap',   name: 'wrap.stars', icon: '⭐', color: '#1a237e', cost: 5000 },
+  { id: 'wrap-pizza',    cat: 'wrap',   name: 'wrap.pizza', icon: '🍕', color: '#fff3e0', cost: 5000 },
+  { id: 'wrap-flames',   cat: 'wrap',   name: 'wrap.flames', icon: '🔥', color: '#212121', cost: 7000 },
+  { id: 'wrap-rainbow',  cat: 'wrap',   name: 'wrap.rainbow', icon: '🌈', color: '#ffffff', cost: 9000 },
+  { id: 'wrap-camo',     cat: 'wrap',   name: 'wrap.camo', icon: '🪖', color: '#556b2f', cost: 9000 },
   { id: 'poles-none',    cat: 'poles',  name: 'color.none', color: 'transparent', cost: 0 },
   { id: 'poles-alu',     cat: 'poles',  name: 'color.alu', color: '#b0bec5', cost: 0 },
   { id: 'poles-black',   cat: 'poles',  name: 'color.black', color: '#262626', cost: 1500 },
   { id: 'poles-red',     cat: 'poles',  name: 'color.red', color: '#c62828', cost: 2500 },
   { id: 'poles-gold',    cat: 'poles',  name: 'color.gold', color: '#c9a227', cost: 8000 },
 ];
+
+// Customize: jacka och byxor väljs per karaktär ("Original" = karaktärens egna färger), resten gäller alla
+const CHAR_STYLE_CATS = ['jacket', 'jacketWrap', 'pants', 'pantsWrap'];
+const WRAP_CATS = ['wrap', 'jacketWrap', 'pantsWrap']; // samma wraps (köps en gång) på skidor, jacka och byxor
+const styleById = (id) => STYLES.find((st) => st.id === id);
 
 // Karaktärer: färger som ersätter standarden och extra delar på huvud/kropp.
 // Utan egen jackfärg används jackan från stilbutiken.
@@ -77,7 +103,7 @@ const ABILITY_KEYS = ['speed', 'spin', 'flip', 'land', 'air', 'tricks', 'coins',
 // Grabs: varsin tangent. Poäng per sekund man håller i.
 const GRABS = [
   { id: 'indy',    key: 'KeyF', name: 'Indy grab',    pts: 120 },
-  { id: 'japan',   key: 'KeyR', name: 'Japan grab',   pts: 150 },
+  { id: 'japan',   key: 'KeyG', name: 'Japan grab',   pts: 150 },
   { id: 'chinese', key: 'KeyV', name: 'Chinese grab', pts: 170 },
   { id: 'tail',    key: 'KeyQ', name: 'Tail grab',    pts: 140 },
 ];

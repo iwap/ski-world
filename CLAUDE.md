@@ -23,11 +23,12 @@ Användaren skriver på svenska: svara på svenska.
 - Off-pist (bara där): 25 % långsammare (`speed: 0.75`), halva längden (`lengthMult`), smal (`netX: 18`) med rep istället för nät, tät skog, pudersnö (`powder`), små puckar överallt (`lumps`), inga byggda hopp eller räcken – bara fallna träd (`log`), naturliga snöpuckar (`bump`) och ibland en klippa över hela bredden (`cliff`, 2–12 m). Ibland en liten stuga (`hut`) i landningen efter en klippa eller puck – man kan landa och åka på taket.
 - Slalomportarna är vanliga slalomkäppar (röda och blå) utan flaggor.
 - Halfpipen: 1,5 gånger så hög luft (`PIPE_LIFT`) och mer förlåtande landningar.
-- Tricks i luften: ← → snurr, ↑ ↓ volt, G cork 360 (ett varv medan kroppen lutar ut ~125°, över huvudet), F R V Q grabs (Mute grab är borttagen). Nya tricks ska med i tutorialen.
+- Tricks i luften: ← → snurr, ↑ ↓ volt, R cork 360 (ett varv medan kroppen lutar ut ~125°, över huvudet), F G V Q grabs (Japan på G, Mute grab är borttagen). Nya tricks ska med i tutorialen.
 - Ingen slowmotion. Volt-cooldown 0,25 s, kedjan nollställs efter 3 s utan nytt trick.
 - Vinnaren av ett race får 1,5 gånger pengarna (`RACE_WIN_MULT`). Namn är unika och minst 3 tecken.
 - Tutorialen visas bara första gången någonsin.
 - Tomtens presenter (`js/online/presents.js`): var 15:e minut 100 presenter, lika många per bana, samma platser för alla. Servern (`claim_present`) avgör vem som var först – 500 pengar. Presenterna får aldrig påverka hur backen byggs (de ignoreras av `collides`/`overlaps`) och visas bara när servern har svarat.
+- Customize (`js/ui/customize.js`): alla färger och wraps köps och väljs där (inte i butiken). Jacka, byxor och deras wraps väljs per karaktär (`save.look`), hjälm/skidor/wrap/stavar gäller alla. Man ser karaktären och kan peka på något för att se det innan man köper. Zombie-skinnet är borttaget.
 - Stugor: landar man rakt åker man på taket, landar man snett grindar man längs nocken.
 
 ## Tester

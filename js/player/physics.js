@@ -302,7 +302,7 @@ function updateAir(dt, s) {
   const front = wasPressed('ArrowUp', 'KeyW');
   // Cooldown mellan volterna så att man inte kan spamma dem
   p.trickCd = Math.max(0, (p.trickCd || 0) - dt);
-  if (!p.flipping && !p.corking && p.trickCd <= 0 && wasPressed('KeyG')) {
+  if (!p.flipping && !p.corking && p.trickCd <= 0 && wasPressed('KeyR')) {
     p.corking = true;
     p.corkProg = 0;
     p.corkDir = p.spin < 0 || isLeft() ? -1 : 1; // åt samma håll som man redan snurrar

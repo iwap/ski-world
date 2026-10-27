@@ -1,7 +1,7 @@
-// Cork (G): ett snett snurr i luften som ger poäng, kraschar om det inte hinner bli klart, och Mute grab är borta. budget: 60000
+// Cork (R): ett snett snurr i luften som ger poäng, kraschar om det inte hinner bli klart, och Mute grab är borta. budget: 60000
 runTest(async (t) => {
   save.lift = false;
-  t.ok(!GRABS.some((g) => g.key === 'KeyG'), 'G ska inte längre vara en grab');
+  t.ok(!GRABS.some((g) => g.key === 'KeyR'), 'R ska inte vara en grab (R = cork)');
   // Hoppa högt, tryck G och låt corken bli klar före landningen
   const jumpCork = (pressAt, vz) => {
     setCourse('classic');
@@ -18,7 +18,7 @@ runTest(async (t) => {
     let i = 0;
     play(60 * 6, () => {
       keys.clear();
-      if (i++ === pressAt) { keys.add('KeyG'); pressed.add('KeyG'); }
+      if (i++ === pressAt) { keys.add('KeyR'); pressed.add('KeyR'); }
       if (player.corking) maxTilt = Math.max(maxTilt, player.corkProg);
       if (!player.air && player.combo.parts.length) parts = player.combo.parts.slice();
     }, { until: () => !player.air || state !== 'playing' });
@@ -47,7 +47,7 @@ runTest(async (t) => {
       keys.clear();
       i++;
       // Tryck G strax före landningen
-      if (!done && player.air && player.vz < 0 && player.z < 1) { keys.add('KeyG'); pressed.add('KeyG'); done = true; }
+      if (!done && player.air && player.vz < 0 && player.z < 1) { keys.add('KeyR'); pressed.add('KeyR'); done = true; }
     }, { until: () => state !== 'playing' || (!player.air && i > 5) });
     return { state, reason: player.crashReason };
   })();

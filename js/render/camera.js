@@ -84,7 +84,7 @@ function updateCamera(dt, time, snap = false) {
     return;
   }
 
-  if (state === 'menu' && !$('characters').classList.contains('hidden')) {
+  if (state === 'menu' && (!$('characters').classList.contains('hidden') || !$('customize').classList.contains('hidden'))) {
     // Karaktärsval: nära kamera som sakta går runt åkaren, åkaren till vänster om panelen
     skier.head.visible = true;
     skier.upper.visible = true;

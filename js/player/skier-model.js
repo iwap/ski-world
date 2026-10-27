@@ -85,6 +85,15 @@ const roundEnds = (u, w, tailEnd, tipStart) => {
   return w;
 };
 
+// Plana texturkoordinater uppifrån: en mönsterruta per tile meter (för wraps)
+function addTopUv(geo, tileX, tileZ) {
+  const p = geo.attributes.position;
+  const uv = [];
+  for (let i = 0; i < p.count; i++) uv.push(p.getX(i) / tileX + 0.5, -p.getZ(i) / tileZ);
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  return geo;
+}
+
 function makeSkiGeometry() {
   // Riktig skida: midja (sidecut), bredare spets och bakände, uppböjd spets, lätt twin tip och tunnare ändar
   const geo = makeBladeGeometry({
@@ -98,15 +107,15 @@ function makeSkiGeometry() {
   const stripe = C('#30363b');
   const edge = C('#8e979f');
   const base = C('#1f2428');
-  return buildGeometry([{
+  return addTopUv(buildGeometry([{
     geo,
     color: (v, n) => {
       if (n.y < -0.45) return base;            // belag
       if (n.y < 0.45) return edge;             // stålkanter
-      // Ovansida: färgen kommer från materialet (stilbutiken), plus en rand och en logga mot spetsen
+      // Ovansida: färgen kommer från materialet (Customize), plus en rand och en logga mot spetsen
       return Math.abs(v.x) < 0.007 || (v.z < -0.55 && v.z > -0.68) ? stripe : top;
     },
-  }]);
+  }]), 0.11, 0.11);
 }
 
 function makeBoardGeometry() {
@@ -122,14 +131,14 @@ function makeBoardGeometry() {
   });
   const base = C('#1f2428');
   const edge = C('#8e979f');
-  return buildGeometry([{
+  return addTopUv(buildGeometry([{
     geo,
     color: (v, n) => {
       if (n.y < -0.45) return base;
       if (n.y < 0.45) return edge;
       return Math.abs(v.z + v.x * 1.5) < 0.06 ? C('#30363b') : C('#ffffff');
     },
-  }]);
+  }]), 0.3, 0.3);
 }
 
 // Extra delar för karaktärerna (hår, mössor, masker …). Framåt är -z, huvudets radie ca 0,11.
@@ -465,15 +474,83 @@ function makeSkier() {
 
 const skier = makeSkier();
 
-// Färger från stilbutiken + skidor eller snowboard
+// Wraps: ett mönster som upprepas på skidornas och brädans ovansida
+const wrapTextures = {};
+function wrapTexture(id) {
+  if (wrapTextures[id]) return wrapTextures[id];
+  const st = styleById(id);
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = st.color;
+  g.fillRect(0, 0, 128, 128);
+  if (id === 'wrap-rainbow') {
+    ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((col, i) => {
+      g.fillStyle = col;
+      g.fillRect(0, i * 128 / 6, 128, 128 / 6 + 1);
+    });
+  } else if (id === 'wrap-camo') {
+    const rand = mulberry32(7);
+    for (const col of ['#6b8e23', '#3e4a24', '#8d7b4f', '#2f3a1f']) {
+      g.fillStyle = col;
+      for (let k = 0; k < 7; k++) {
+        g.beginPath();
+        g.ellipse(rand() * 128, rand() * 128, 10 + rand() * 18, 6 + rand() * 10, rand() * 3, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  } else {
+    g.font = '52px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(st.icon, 32, 34);
+    g.fillText(st.icon, 96, 98);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  wrapTextures[id] = tex;
+  return tex;
+}
+
+// Samma mönster på kläderna, i mindre rutor (kläderna har större ytor än skidorna)
+const clothTextures = {};
+function clothTexture(id) {
+  if (!clothTextures[id]) {
+    const tex = wrapTexture(id).clone();
+    tex.repeat.set(4, 3);
+    tex.needsUpdate = true;
+    clothTextures[id] = tex;
+  }
+  return clothTextures[id];
+}
+
+function setMap(m, tex) {
+  if (m.map === tex) return;
+  m.map = tex;
+  m.needsUpdate = true;
+}
+
+// Färger från Customize + skidor eller snowboard
 const currentCharacter = () => CHARACTERS.find((c) => c.id === save.character) || CHARACTERS[0];
 
 function applyLook(ch = currentCharacter()) {
   const m = skier.mats;
-  m.jacket.color.set(ch.jacket || styleColor('jacket'));
+  // Customize: egna färger på den här karaktären går före karaktärens egna
+  const look = (save.look && save.look[ch.id]) || {};
+  const own = (cat) => (look[cat] && styleById(look[cat]) ? styleById(look[cat]).color : null);
+  m.jacket.color.set(own('jacket') || ch.jacket || styleColor('jacket'));
   m.jacket.metalness = ch.metal ? 0.35 : ch.gold ? 0.45 : 0;
   m.jacket.roughness = ch.metal ? 0.35 : ch.gold ? 0.3 : 0.55;
   for (const k of ['pants', 'accent', 'skin', 'pack', 'boot']) m[k].color.set(ch[k] || CHAR_DEFAULT[k]);
+  if (own('pants')) m.pants.color.set(own('pants'));
+  // Wrap på jacka/byxor: mönstrets egna färger
+  for (const k of ['jacket', 'pants']) {
+    const w = look[`${k}Wrap`] && styleById(look[`${k}Wrap`]) ? look[`${k}Wrap`] : null;
+    setMap(m[k], w ? clothTexture(w) : null);
+    if (w) m[k].color.set('#ffffff');
+  }
   m.pants.metalness = ch.metal ? 0.3 : ch.gold ? 0.4 : 0;
   m.pants.roughness = ch.gold ? 0.3 : 0.85;
   m.boot.metalness = ch.gold ? 0.4 : 0;
@@ -487,7 +564,12 @@ function applyLook(ch = currentCharacter()) {
   const chrome = save.style.helmet === 'helmet-chrome';
   skier.mats.helmet.metalness = chrome ? 0.95 : 0.25;
   skier.mats.helmet.roughness = chrome ? 0.08 : 0.2;
-  skier.mats.gear.color.set(styleColor('gear'));
+  const wrap = save.style.wrap && save.style.wrap !== 'wrap-none' && styleById(save.style.wrap) ? save.style.wrap : null;
+  if (skier.mats.gear.map !== (wrap ? wrapTexture(wrap) : null)) {
+    skier.mats.gear.map = wrap ? wrapTexture(wrap) : null;
+    skier.mats.gear.needsUpdate = true;
+  }
+  skier.mats.gear.color.set(wrap ? '#ffffff' : styleColor('gear')); // med wrap syns mönstrets egna färger
   skier.snowboard.visible = isBoard();
   for (const part of skier.helmetParts) part.visible = save.helmetOn !== false && !ch.noHelmet;
   const poleStyle = save.style.poles || 'poles-none';
