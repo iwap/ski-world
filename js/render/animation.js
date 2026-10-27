@@ -13,8 +13,6 @@ const ANKLE = new THREE.Vector3(0, 0.3, 0.02);
 const DOWN = new THREE.Vector3(0, -1, 0);
 const KNEE_HINT_BOARD = [new THREE.Vector3(1, 0, -0.3), new THREE.Vector3(1, 0, 0.3)];
 
-const CORK_AXIS = new THREE.Vector3(0, Math.cos(Math.PI / 3), Math.sin(Math.PI / 3)).normalize();
-
 function updateSkierModel(dt, time) {
   const p = player;
   const m = skier;
@@ -55,16 +53,18 @@ function updateSkierModel(dt, time) {
     p.facingVis += (p.facing - p.facingVis) * smooth(9, dt);
     const twistTarget = p.grind ? p.grind.twist : p.braking * 1.1;
     p.twist += (twistTarget - p.twist) * smooth(10, dt);
-    m.spinG.rotation.y = -(p.spin + p.facingVis + p.twist);
+    // Cork: två varv runt den lodräta axeln (720) …
+    const corkSpin = p.corking ? p.corkDir * p.corkProg * Math.PI * 4 : 0;
+    m.spinG.rotation.y = -(p.spin + p.facingVis + p.twist + corkSpin);
 
     // Lutning in i svängen (hela kroppen + skidorna på kant)
     const leanTarget = p.grind ? -p.balance * 0.7 : -carve * 0.6;
     p.lean += (leanTarget - p.lean) * smooth(7, dt);
     p.stumble = Math.max(0, (p.stumble || 0) - dt * 1.4);
     const wobble = Math.sin(time * 22) * 0.35 * p.stumble;
-    m.flipG.rotation.set(p.flipping ? p.flipDir * p.flipProg * Math.PI * 2 : -p.stumble * 0.5, 0, p.lean + wobble);
-    // Cork: ett varv runt en axel som lutar 60° bakåt från lodrätt – mitt i varvet är huvudet nere och skidorna uppe
-    if (p.corking) m.flipG.quaternion.setFromAxisAngle(CORK_AXIS, -p.corkDir * p.corkProg * Math.PI * 2);
+    // … medan kroppen lutar ut ~85° och tillbaka, så att huvudet går ner snett genom snurret
+    const corkTilt = p.corking ? -Math.sin(p.corkProg * Math.PI) * 1.5 : 0;
+    m.flipG.rotation.set(p.flipping ? p.flipDir * p.flipProg * Math.PI * 2 : -p.stumble * 0.5 + corkTilt, 0, p.lean + wobble);
   }
 
   const grab = !crashed && !seated && air && isGrab();

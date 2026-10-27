@@ -600,7 +600,7 @@ function sigLabel(sig) {
       return n === 1 ? base : n === 2 ? t(m[1] === 'back' ? 'trick.doubleBackflip' : 'trick.doubleFrontflip') : `${n}x ${base.toLowerCase()}`;
     }
     m = s.match(/^cork(\d+)$/);
-    if (m) return m[1] === '1' ? 'Cork 360' : m[1] === '2' ? 'Double cork' : `${m[1]}x cork`;
+    if (m) return m[1] === '1' ? 'Cork 720' : m[1] === '2' ? 'Double cork 1440' : `${m[1]}x cork`;
     const g = GRABS.find((x) => `grab-${x.id}` === s);
     return g ? g.name : s;
   }).join(' + ');
