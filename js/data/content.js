@@ -128,7 +128,7 @@ const BADGES = [
   { id: 'roof',       cat: 'tricks', icon: '🛖', reward: 1000 },
   { id: 'highfive',   cat: 'tricks', icon: '✋', reward: 300 },
   { id: 'nearmiss',   cat: 'tricks', icon: '😮', reward: 300 },
-  ...['classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste'].map((c) => ({ id: `course-${c}`, cat: 'courses', course: c, reward: 1000 })),
+  ...['classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste', 'fun'].map((c) => ({ id: `course-${c}`, cat: 'courses', course: c, reward: 1000 })),
   { id: 'slalomclean', cat: 'courses', icon: '🎿', reward: 2000 },
   { id: 'diff-easy',   cat: 'diff', diff: 'easy',   icon: '🟢', reward: 500 },
   { id: 'diff-normal', cat: 'diff', diff: 'normal', icon: '🔵', reward: 1000 },

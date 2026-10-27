@@ -69,9 +69,9 @@ function updateNets(pd) {
   netStart = start;
   let posts = 0;
   for (let side = 0; side < 2; side++) {
-    const x = side ? netX() : -netX();
     for (let i = 0; i < NET_POINTS; i++) {
       const d = start + i * NET_SEG;
+      const x = courseX(d) + (side ? netX() : -netX());
       const y = groundY(x, d);
       const v = (side * NET_POINTS + i) * 2;
       netPos.set([x, y, -d, x, y + NET_H, -d], v * 3);

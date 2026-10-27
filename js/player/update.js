@@ -133,9 +133,10 @@ function update(dt) {
     }
   }
   const limit = netX() - 0.7;
-  if (!p.grind && Math.abs(p.x) > limit) {
-    const side = Math.sign(p.x);
-    p.x = side * limit;
+  const cx = courseX(p.d);
+  if (!p.grind && Math.abs(p.x - cx) > limit) {
+    const side = Math.sign(p.x - cx);
+    p.x = cx + side * limit;
     if (Math.sin(p.angle) * side > 0) {
       p.angle = -p.angle * 0.5;
       p.turnVel = 0;
@@ -143,6 +144,14 @@ function update(dt) {
       const f = feet();
       burst(f.x, f.y + 0.6, f.z, 40, 3, 0.5);
       Sound.bounce();
+    }
+  }
+  // Fun slope: åker man upp på vallen i en sväng styr den en mjukt in i banans riktning (som en doserad sväng)
+  if (course.wind && !p.air && !p.grind) {
+    const rel = Math.abs(p.x - cx) - (netX() - 4);
+    if (rel > 0) {
+      const along = Math.atan2(courseX(p.d + 2) - courseX(p.d - 2), 4);
+      p.angle += (along - p.angle) * smooth(2.5 * Math.min(1, rel / 3), dt);
     }
   }
   if (!p.air && !p.grind && !p.onRock) emitCarve(dt, s);

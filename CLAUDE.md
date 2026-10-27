@@ -28,6 +28,7 @@ Användaren skriver på svenska: svara på svenska.
 - Vinnaren av ett race får 1,5 gånger pengarna (`RACE_WIN_MULT`). Namn är unika och minst 3 tecken.
 - Tutorialen visas bara första gången någonsin.
 - Tomtens presenter (`js/online/presents.js`): var 15:e minut 100 presenter, lika många per bana, samma platser för alla. Servern (`claim_present`) avgör vem som var först – 500 pengar. Presenterna får aldrig påverka hur backen byggs (de ignoreras av `collides`/`overlaps`) och visas bara när servern har svarat.
+- Fun slope (`fun`): smal bana (`netX: 9`) som slingrar sig – `courseX(d)` ger banans mitt (0 på alla andra banor). Allt som placeras i sidled, nät, gränsen och presenterna utgår från `courseX`. Ett hopp (grönt/blått/rött) på varje rakt parti (`spawnFunTrack`), stjärnor genom svängarna, doserade väggar (`wallY`) som är högre på svängarnas utsida och styr in åkaren i banans riktning.
 - Customize (`js/ui/customize.js`): alla färger och wraps köps och väljs där (inte i butiken). Jacka, byxor och deras wraps väljs per karaktär (`save.look`), hjälm/skidor/wrap/stavar gäller alla. Man ser karaktären och kan peka på något för att se det innan man köper. Zombie-skinnet är borttaget.
 - Stugor: landar man rakt åker man på taket, landar man snett grindar man längs nocken.
 

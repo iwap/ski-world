@@ -94,7 +94,7 @@ function checkGates() {
 const RAIL_AFTER_JUMP = 0.6;
 function spawnRailAfterJump(ramp) {
   const f = ramp.feature;
-  if (ramp.ramp.mega || !course.weights.rail || Math.random() > RAIL_AFTER_JUMP) return;
+  if (ramp.ramp.mega || !(course.weights.rail || course.wind) || Math.random() > RAIL_AFTER_JUMP) return;
   // Railen börjar lite före normal landning och räcker långt så att både lite långsammare och snabbare åkare når den
   const start = f.lip + f.reach * 0.75;
   const len = Math.max(14, f.reach * 0.6 + 10);
@@ -128,6 +128,31 @@ function spawnMegaJumps(toD) {
       else objects.push(rail);
     }
     nextMegaD = (o.feature ? o.feature.d3 : nextMegaD + 120) + 60; // skogsparti mellan hoppen
+  }
+}
+
+// Fun slope: ett hopp på varje rakt parti, stjärnor genom svängarna och ibland en rail nerför landningen
+let nextFunK = 0;
+function spawnFunTrack(toD) {
+  const w = course.wind;
+  const P = w.straight + w.turn;
+  const rampType = OBSTACLES.find((o) => o.type === 'ramp');
+  const starType = OBSTACLES.find((o) => o.type === 'star');
+  while (w.start + nextFunK * P < Math.min(toD, runLength() - 160)) {
+    const d0 = w.start + nextFunK * P;
+    const x = courseX(d0 + 1);
+    const o = makeObject(rampType, x, d0 + 12);
+    objects.push(o);
+    const sign = makeGradeSign(o, x + (nextFunK % 2 ? 1 : -1) * (netX() - 1.5), d0 + 2);
+    if (!collides(sign)) objects.push(sign);
+    else removeObject(sign);
+    spawnRailAfterJump(o);
+    // Stjärnor längs svängen
+    for (let d = d0 + w.straight + 4; d < d0 + P; d += 6) {
+      const s = makeObject(starType, courseX(d), d);
+      if (!collides(s)) objects.push(s);
+    }
+    nextFunK++;
   }
 }
 
@@ -184,6 +209,7 @@ function spawnRows(limitD) {
     if (course.slalom) spawnGates(nextSpawnD + 40); // portarna i takt med raderna så att listan hålls sorterad
     if (course.mega) spawnMegaJumps(nextSpawnD + ROW + 60); // hoppen läggs ut i förväg så att uppfarten hålls fri från träd
     if (course.cliffs) spawnCliffs(nextSpawnD + ROW + 100); // klipporna läggs ut i förväg (uppfarten är lång)
+    if (course.wind) spawnFunTrack(nextSpawnD + ROW + 120); // hoppen på Fun slope läggs ut i förväg
     // Svårare och svårare nerför backen: glest i början, tätt mot målet
     const prog = clamp(nextSpawnD / runLength(), 0, 1);
     const density = 0.0075 * (0.5 + 1.2 * prog) * course.density * difficulty.density;
@@ -238,7 +264,8 @@ function spawnRows(limitD) {
     for (const side of [-1, 1]) {
       if (Math.random() < 0.85) {
         const tree = OBSTACLES[Math.random() < 0.8 ? 0 : 1];
-        const o = makeObject(tree, side * (netX() + 2.5 + Math.random() * 30), nextSpawnD + Math.random() * ROW);
+        const td = nextSpawnD + Math.random() * ROW;
+        const o = makeObject(tree, courseX(td) + side * (netX() + 2.5 + Math.random() * 30), td);
         if (Math.abs(o.x - LIFT_X) > 6 && !overlaps(o.x, o.d, footprint(o) * 0.7)) objects.push(o); // fri gata för liften
       }
     }
@@ -267,6 +294,7 @@ function resetWorld() {
   nextSpawnD = 20;
   nextMegaD = 60;
   nextCliffD = 0;
+  nextFunK = 0;
   presentsReset();
   nextGateD = 60;
   features = [];

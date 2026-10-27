@@ -56,14 +56,14 @@ function placePresents() {
     if (s.d > nextSpawnD - 5 || s.d > runLength() - 25) continue;
     let o = null;
     for (const dx of [0, 2, -2, 4, -4, 6, -6, 9, -9]) {
-      const x = clamp(s.x + dx, -netX() + 2, netX() - 2);
+      const x = courseX(s.d) + clamp(s.x + dx, -netX() + 2, netX() - 2);
       const c = makeObject(type, x, s.d);
       if (!collides(c) && featureY(x, s.d) > -0.3) {
         o = c;
         break;
       }
     }
-    if (!o) o = makeObject(type, s.x, s.d + 3); // fullt överallt: lägg den strax efter
+    if (!o) o = makeObject(type, courseX(s.d + 3) + clamp(s.x, -netX() + 2, netX() - 2), s.d + 3); // fullt överallt: lägg den strax efter
     o.idx = idx;
     o.win = presents.win;
     // Sorterat efter sträcka – flera kontroller i världen läser listan bakifrån och slutar när de kommit tillräckligt långt upp

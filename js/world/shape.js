@@ -151,8 +151,18 @@ function lumpY(x, d) {
     + Math.sin(x * 0.45 - d * 0.6 + 1.1) * 0.3);
 }
 
+// Fun slope: väggar som reser sig mot kanterna (som i en boardercross-bana)
+function wallY(x, d) {
+  const w = course.wind;
+  const rel = x - courseX(d);
+  // I svängen: ytterkanten (dit man skulle fortsätta rakt fram) blir en hög, doserad vall som börjar närmare mitten
+  const turn = (courseX(d + 2) - courseX(d - 2)) / 4;
+  const outer = Math.sign(rel) === -Math.sign(turn) ? Math.min(1, Math.abs(turn) * 1.6) : 0;
+  return (w.wall + w.berm * outer) * smoothstep(netX() - 3.5 - outer * 3, netX() + 1.5, Math.abs(rel));
+}
+
 function bumpY(x, d) {
-  return pipeY(x, d) + course.bumps * (Math.sin(x * 0.11 + d * 0.031) * Math.sin(d * 0.07 + 1.7) * 0.9
+  return (course.wind ? wallY(x, d) : 0) + pipeY(x, d) + course.bumps * (Math.sin(x * 0.11 + d * 0.031) * Math.sin(d * 0.07 + 1.7) * 0.9
     + Math.sin(x * 0.37 + 2.1) * Math.sin(d * 0.23) * 0.25) + mogulY(x, d) + featureY(x, d) + (course.lumps ? lumpY(x, d) : 0);
 }
 

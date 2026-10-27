@@ -42,14 +42,21 @@ const COURSES = {
     offpiste: true, powder: true, cliffs: true, lengthMult: 0.5, netX: 27, speed: 0.75, // 25 % långsammare i djupsnön
     weights: { tree: 138, pine: 54, rock: 20, stump: 14, snowman: 0, ramp: 0, star: 6, rail: 0, log: 16, box: 0, bump: 70 },
   },
+  // Fun slope: en smal bana som slingrar sig – raka partier med ett snyggt hopp (grönt/blått/rött) och skarpa svängar
+  // emellan, doserade väggar på sidorna så att man inte kommer förbi. wind = hur banan slingrar (se courseX).
+  fun: {
+    slope: 0.3, waves: [[0.05, 0.02, 0]], bumps: 0.2, moguls: 0, density: 0, netX: 9, rampSizes: [3, 4, 3, 0, 0, 0, 0],
+    wind: { start: 60, straight: 80, turn: 44, width: 12, wall: 2.6, berm: 3 },
+    weights: { tree: 0, pine: 0, rock: 0, stump: 0, snowman: 0, ramp: 0, star: 0, rail: 0, log: 0, box: 0 },
+  },
 };
 // Banorna låses upp med pengar (classic är gratis). Dyrare bana = mer pengar per åk och trick.
-const COURSE_PRICE = { classic: 0, park: 3000, moguls: 6000, pipe: 9000, slalom: 12000, bigair: 15000, offpiste: 18000 };
+const COURSE_PRICE = { classic: 0, park: 3000, moguls: 6000, pipe: 9000, slalom: 12000, bigair: 15000, offpiste: 18000, fun: 21000 };
 // Poäng ×2 på alla banor utom halfpipe (×1,5)
-const COURSE_POINTS = { classic: 2, park: 2, moguls: 2, pipe: 1.5, slalom: 2, bigair: 2, offpiste: 2 };
+const COURSE_POINTS = { classic: 2, park: 2, moguls: 2, pipe: 1.5, slalom: 2, bigair: 2, offpiste: 2, fun: 2 };
 // Klarar man hela banan dubblas poängen för åket
 const FINISH_MULT = 2;
-const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom: 2, bigair: 2.25, offpiste: 2.5 };
+const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom: 2, bigair: 2.25, offpiste: 2.5, fun: 2.75 };
 const DIFFICULTIES = {
   // finishBonus = extra pengar för att ta sig hela vägen i mål
   easy:   { length: 1000, density: 0.6,  speed: 0.9,  balance: 0.6, points: 0.75, finishBonus: 0 },
@@ -57,7 +64,25 @@ const DIFFICULTIES = {
   hard:   { length: 2000, density: 1.45, speed: 1.12, balance: 1.4, points: 1.5,  finishBonus: 1600 },
 };
 let course = COURSES.classic;
-const netX = () => course.netX || NET_X; // avspärrningsnätens läge för den valda banan
+const netX = () => course.netX || NET_X; // avspärrningsnätens läge för den valda banan (från banans mitt)
+
+// Banans mitt i sidled vid sträckan d. Rak på alla banor utom Fun slope: där ligger raka partier växelvis åt vänster
+// och höger (hoppen ligger på dem), med skarpa svängar emellan. Rak start och mål mitt i backen.
+function courseX(d) {
+  const w = course.wind;
+  if (!w) return 0;
+  const side = (k) => (k % 2 === 0 ? 1 : -1) * w.width;
+  const P = w.straight + w.turn;
+  let x;
+  if (d < w.start) x = side(0) * smoothstep(w.start - w.turn, w.start, d);
+  else {
+    const k = Math.floor((d - w.start) / P);
+    const u = d - w.start - k * P;
+    x = u < w.straight ? side(k) : side(k) + (side(k + 1) - side(k)) * smoothstep(w.straight, P, u);
+  }
+  const end = runLength();
+  return x * (1 - smoothstep(end - 70, end - 30, d));
+}
 let difficulty = DIFFICULTIES.normal;
 // Backens längd beror på svårighetsgraden – vid målet väntar sittliften
 const runLength = () => difficulty.length * (course.lengthMult || 1);

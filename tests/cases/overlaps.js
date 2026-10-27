@@ -52,7 +52,7 @@ runTest(async (t) => {
         resetWorld();
         spawnUntil(runLength());
         worldRng = null;
-        const items = objects.filter((o) => Math.abs(o.x) < netX() + 0.5).map((o) => ({ o, shapes: shapesOf(o) })).filter((it) => it.shapes.length);
+        const items = objects.filter((o) => Math.abs(o.x - courseX(o.d)) < netX() + 0.5).map((o) => ({ o, shapes: shapesOf(o) })).filter((it) => it.shapes.length);
         for (let i = 0; i < items.length; i++) {
           for (let j = i + 1; j < items.length; j++) {
             const A = items[i];

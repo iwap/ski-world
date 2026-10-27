@@ -17,7 +17,7 @@ runTest(async (t) => {
           const g = objects.find((o) => o.type === 'gate' && !o.passed && !o.missed && o.d > player.d);
           steerTo(g ? g.x : 0, Math.max(4, g ? g.d - player.d : 12));
           gates = run.gates;
-        } else steerTo(0);
+        } else steerTo(courseX(player.d + 10), 10); // Fun slope slingrar
       }, { invuln: true, until: () => !['playing', 'crashing', 'finish', 'lift'].includes(state) });
       keys.clear();
       results.push(`${c}/${diff}:${state}`);

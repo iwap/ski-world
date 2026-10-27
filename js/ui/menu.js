@@ -1,7 +1,7 @@
 'use strict';
 // Huvudmenyn: banväljaren, inställningar, språk och startskärmen.
 
-const COURSE_ICONS = { classic: '🌲', park: '🏂', moguls: '⛰️', pipe: '🌀', slalom: '🚩', bigair: '🚀', offpiste: '🪵' };
+const COURSE_ICONS = { classic: '🌲', park: '🏂', moguls: '⛰️', pipe: '🌀', slalom: '🚩', bigair: '🚀', offpiste: '🪵', fun: '🎢' };
 
 // Bläddra mellan banorna i menyn
 function cycleCourse(dir) {

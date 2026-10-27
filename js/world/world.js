@@ -211,7 +211,7 @@ function makeDeco(geo, x, d, rotY) {
 function spawnDecor(d0, d1) {
   if (course.pipe) return;
   const crossed = (every, offset = 0) => Math.floor((d1 - offset) / every) > Math.floor((d0 - offset) / every) && d1 > 60;
-  if (crossed(130) && !course.mega && !course.offpiste) {
+  if (crossed(130) && !course.mega && !course.offpiste && !course.wind) {
     const k = Math.floor(d1 / 130);
     const o = makeCannon(d1, k % 2 ? 1 : -1);
     if (!overlaps(o.x, o.d, 1.5) && !collides(o)) objects.push(o);

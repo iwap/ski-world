@@ -2,7 +2,7 @@
 // tagna presenter syns inte, och backen byggs likadant med presenter. budget: 60000
 runTest(async (t) => {
   const calls = [];
-  let taken = [0, 7];   // redan tagna av andra
+  let taken = [0, Object.keys(COURSES).length];   // två presenter på Klassisk är redan tagna av andra
   let first = true;     // servern: jag hinner först
   window.fetch = async (url, opts = {}) => {
     calls.push({ url: String(url), body: opts.body ? JSON.parse(opts.body) : null });
@@ -19,7 +19,8 @@ runTest(async (t) => {
   // Lika många på varje bana
   const per = {};
   for (let i = 0; i < PRESENT_COUNT; i++) per[presentSpot(1, i).course] = (per[presentSpot(1, i).course] || 0) + 1;
-  t.ok(Object.values(per).every((n) => n >= 14 && n <= 15) && Object.keys(per).length === Object.keys(COURSES).length, `ojämnt fördelat ${JSON.stringify(per)}`);
+  const nc = Object.keys(COURSES).length;
+  t.ok(Object.values(per).every((n) => n >= Math.floor(PRESENT_COUNT / nc) && n <= Math.ceil(PRESENT_COUNT / nc)) && Object.keys(per).length === nc, `ojämnt fördelat ${JSON.stringify(per)}`);
   t.eq(JSON.stringify(presentSpot(5, 3)), JSON.stringify(presentSpot(5, 3)), 'samma plats för alla');
 
   setCourse('classic');
@@ -41,7 +42,7 @@ runTest(async (t) => {
   spawnUntil(runLength());
   play(2);
   const mine = objects.filter((o) => o.type === 'present' && !o.taken);
-  t.eq(mine.length, 15 - 2, 'fel antal presenter på Klassisk (två redan tagna)');
+  t.eq(mine.length, Math.ceil(PRESENT_COUNT / Object.keys(COURSES).length) - 2, 'fel antal presenter på Klassisk (två redan tagna)');
   t.ok(mine.every((o) => o.idx % Object.keys(COURSES).length === 0), 'presenter från en annan bana');
 
   // Åk igenom en present: jag var först
@@ -112,7 +113,7 @@ runTest(async (t) => {
   taken = [];
   presents.claimed = new Set();
   build(true);
-  t.ok(objects.filter((o) => o.type === 'present').length >= 14, 'inga presenter lades ut i testet');
+  t.ok(objects.filter((o) => o.type === 'present').length >= Math.floor(PRESENT_COUNT / Object.keys(COURSES).length) - 1, 'inga presenter lades ut i testet');
   const withPresents = layout();
   build(false);
   t.eq(layout(), withPresents, 'presenterna ändrade backen');

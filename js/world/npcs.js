@@ -152,7 +152,7 @@ function clearNpcs() {
 function updateNpcs(dt) {
   const p = player;
   // Ny åkare en bit framför dig ibland (inte i halfpipen)
-  if (!course.pipe && !course.mega && !tutorial && !race && npcs.length < 5 && Math.random() < dt * 0.3 && p.d < runLength() - 300) {
+  if (!course.pipe && !course.mega && !course.wind && !tutorial && !race && npcs.length < 5 && Math.random() < dt * 0.3 && p.d < runLength() - 300) {
     const d = p.d + 160 + Math.random() * 60;
     const bx = (Math.random() - 0.5) * (netX() * 1.3);
     npcs.push({
