@@ -231,7 +231,9 @@ function shapesOf(o) {
   if (f) {
     // Halva sidosläntens bredd räknas också – annars hamnar saker halvvägs inne i snövallen
     const w = f.half + (f.sideW || 0) * 0.5 + SHAPE_PAD;
-    shapes = [{ x0: f.x - w, x1: f.x + w, d0: f.d0 - SHAPE_PAD, d1: f.d3 + SHAPE_PAD }];
+    shapes = f.cliff
+      ? [{ x0: f.x - w, x1: f.x + w, d0: f.lip - 8, d1: f.d3 + f.land }] // fritt före kanten och nedanför (där man landar)
+      : [{ x0: f.x - w, x1: f.x + w, d0: f.d0 - SHAPE_PAD, d1: f.d3 + SHAPE_PAD }];
   } else if (isLinear(o)) {
     const n = Math.max(2, Math.ceil(o.len));
     for (let i = 0; i <= n; i++) {

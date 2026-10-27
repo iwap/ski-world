@@ -34,9 +34,21 @@ for (let side = 0; side < 2; side++) {
 netGeo.setIndex(netIdx);
 netGeo.setAttribute('position', new THREE.BufferAttribute(netPos, 3));
 netGeo.setAttribute('uv', new THREE.BufferAttribute(netUv, 2));
-const nets = new THREE.Mesh(netGeo, new THREE.MeshLambertMaterial({
-  map: netTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide,
-}));
+// Off-pist: bara ett rep (två trådar) mellan trästolpar istället för nät
+const ropeTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#ffb300';
+  g.fillRect(0, 30, 64, 4);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+})();
+const netMat = new THREE.MeshLambertMaterial({ map: netTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
+const ropeMat = new THREE.MeshLambertMaterial({ map: ropeTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
+const nets = new THREE.Mesh(netGeo, netMat);
 nets.frustumCulled = false;
 scene.add(nets);
 const netPosts = new THREE.InstancedMesh(
@@ -49,6 +61,9 @@ scene.add(netPosts);
 let netStart = null;
 
 function updateNets(pd) {
+  // Off-pist: inget nät, bara ett rep mellan trästolpar
+  nets.material = course.offpiste ? ropeMat : netMat;
+  netPosts.material.color.set(course.offpiste ? '#8d6e63' : '#263238');
   const start = Math.floor((pd - 30) / NET_SEG) * NET_SEG;
   if (start === netStart) return;
   netStart = start;

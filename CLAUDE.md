@@ -20,7 +20,8 @@ Användaren skriver på svenska: svara på svenska.
 ### Spelregler som användaren har bestämt
 - Banpriser och belöning: `COURSE_PRICE` / `COURSE_REWARD` i `js/data/courses.js`. Poängen skalas med `SCORE_SCALE` och `TRICK_SCALE` (Big Air och halfpipe ger en tredjedel för tricks).
 - Banpriserna ökar med 3 000 per bana. `COURSE_POINTS`: poäng ×2 på alla banor utom halfpipe (×1,5) och Big Air (×1). Klarar man hela banan dubblas poängen för åket (`FINISH_MULT`). Karaktärsboxen kostar 5 000.
-- Off-pist: halva längden (`lengthMult`), tät skog, inga byggda hopp eller räcken – bara fallna träd (`log`) och naturliga snöpuckar (`bump`).
+- Off-pist (bara där): halva längden (`lengthMult`), smal (`netX: 18`) med rep istället för nät, tät skog, pudersnö (`powder`), små puckar överallt (`lumps`), inga byggda hopp eller räcken – bara fallna träd (`log`), naturliga snöpuckar (`bump`) och ibland en klippa över hela bredden (`cliff`, 2–12 m).
+- Slalomportarna har små flaggor på stängerna.
 - Halfpipen: 1,5 gånger så hög luft (`PIPE_LIFT`) och mer förlåtande landningar.
 - Ingen slowmotion. Volt-cooldown 0,25 s, kedjan nollställs efter 3 s utan nytt trick.
 - Vinnaren av ett race får dubbla pengar. Namn är unika och minst 3 tecken.

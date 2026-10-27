@@ -54,6 +54,11 @@ function featureY(x, d) {
     if (lat > f.half + f.sideW) continue;
     const side = 1 - smoothstep(f.half, f.half + f.sideW, lat);
     let top;
+    if (f.cliff) {
+      top = d < f.lip ? f.H * smoothstep(f.d0, f.lip - 4, d) : f.H * (1 - (d - f.lip) / (f.d3 - f.lip));
+      h = Math.max(h, top * side);
+      continue;
+    }
     if (f.bump) {
       // Snöpuck (som en vindkant): konkav upp till krönet så att man lyfter där, sedan en mjuk slänt ner
       top = d < f.lip ? f.H * Math.pow((d - f.d0) / (f.lip - f.d0), 1.8) : f.H * (1 - smoothstep(f.lip, f.d3, d));
@@ -135,9 +140,20 @@ function onFeatureCrest(x, d) {
   return false;
 }
 
+function cliffY(x, d) {
+  const f = features.find((c) => c.cliff && d >= c.d0 && d <= c.d3);
+  return f ? f.H * smoothstep(f.d0, f.lip - 4, d) * (1 - smoothstep(f.half, f.half + f.sideW, Math.abs(x - f.x))) : 0;
+}
+
+// Off-pist: små oregelbundna puckar överallt (minst ~7 m mellan topparna så att terrängnätet hinner med)
+function lumpY(x, d) {
+  return course.lumps * (Math.sin(x * 0.7 + Math.sin(d * 0.13) * 1.3) * Math.sin(d * 0.8 + x * 0.3) * 0.7
+    + Math.sin(x * 0.45 - d * 0.6 + 1.1) * 0.3);
+}
+
 function bumpY(x, d) {
   return pipeY(x, d) + course.bumps * (Math.sin(x * 0.11 + d * 0.031) * Math.sin(d * 0.07 + 1.7) * 0.9
-    + Math.sin(x * 0.37 + 2.1) * Math.sin(d * 0.23) * 0.25) + mogulY(x, d) + featureY(x, d);
+    + Math.sin(x * 0.37 + 2.1) * Math.sin(d * 0.23) * 0.25) + mogulY(x, d) + featureY(x, d) + (course.lumps ? lumpY(x, d) : 0);
 }
 
 function groundY(x, d) {

@@ -54,6 +54,10 @@ function update(dt) {
       p.z += p.vz * dt - db; // marken under rör sig när man flyger över puckar
       p.maxZ = Math.max(p.maxZ || 0, p.z);
       if (p.z <= 0) land();
+    } else if (!p.onRock && features.some((f) => f.cliff && p.prevD < f.lip && p.d >= f.lip)) {
+      // Klippan: ett litet skutt ut från kanten, sedan fritt fall ner (marken försvann redan en bit den här bildrutan)
+      launch((2.5 + p.speed * 0.06) * s.jumpPower);
+      p.z = Math.max(0.01, -db);
     } else if (db < -0.6 && !p.onRock && !(inPipe(p.d) && Math.abs(p.x) < PIPE_COPING + 0.3)) {
       // Marken försvann under en (en kant) – fall ner istället för att teleporteras.
       // Pipens väggar är branta men ingen kant: där följer man väggen ner efter landningen.

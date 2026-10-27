@@ -10,7 +10,7 @@ const gateMats = {
   blue: new THREE.MeshLambertMaterial({ color: '#1e88e5', side: THREE.DoubleSide }),
 };
 const gatePoleGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.9, 6).translate(0, 0.95, 0);
-const gateFlagGeo = new THREE.PlaneGeometry(GATE_HALF * 2 - 0.1, 0.7);
+const gateFlagGeo = new THREE.PlaneGeometry(0.55, 0.4);
 let nextGateD = 0;
 let gateSide = 1;
 let lastGate = null;
@@ -24,10 +24,13 @@ function buildGate(o) {
     pole.castShadow = true;
     g.add(pole);
   }
-  const flag = new THREE.Mesh(gateFlagGeo, mat);
-  flag.position.y = 1.5;
-  flag.castShadow = true;
-  g.add(flag);
+  // En liten flagga på varje stång, inåt mot porten
+  for (const s of [-1, 1]) {
+    const flag = new THREE.Mesh(gateFlagGeo, mat);
+    flag.position.set(s * (GATE_HALF - 0.3), 1.65, 0);
+    flag.castShadow = true;
+    g.add(flag);
+  }
   g.position.set(o.x, groundY(o.x, o.d), -o.d);
   return g;
 }
@@ -136,6 +139,27 @@ function spawnMegaJumps(toD) {
   }
 }
 
+// Off-pist: ibland en klippa över hela bredden – man kan inte åka förbi, bara hoppa
+let nextCliffD = 0;
+function spawnCliffs(toD) {
+  const cliffType = OBSTACLES.find((o) => o.type === 'cliff');
+  while (nextCliffD < toD) {
+    const d = nextCliffD;
+    nextCliffD += 130 + Math.random() * 110;
+    if (d < 80) continue;
+    const o = makeObject(cliffType, 0, d);
+    // Landningen nedanför ska hinnas före målet
+    if (o.feature.d3 + o.feature.land > runLength() - 25) {
+      removeObject(o);
+      features = features.filter((f) => f !== o.feature);
+      nextCliffD = Infinity;
+      return;
+    }
+    objects.push(o);
+    nextCliffD = Math.max(nextCliffD, o.feature.lip + 60);
+  }
+}
+
 // Skylt i hoppets färg (grönt, blått, rött, svart) som i riktiga parker
 function makeGradeSign(o, x, d) {
   const g = GRADES[o.ramp.grade];
@@ -157,6 +181,7 @@ function spawnRows(limitD) {
   while (nextSpawnD < limitD) {
     if (course.slalom) spawnGates(nextSpawnD + 40); // portarna i takt med raderna så att listan hålls sorterad
     if (course.mega) spawnMegaJumps(nextSpawnD + ROW + 60); // hoppen läggs ut i förväg så att uppfarten hålls fri från träd
+    if (course.cliffs) spawnCliffs(nextSpawnD + ROW + 100); // klipporna läggs ut i förväg (uppfarten är lång)
     // Svårare och svårare nerför backen: glest i början, tätt mot målet
     const prog = clamp(nextSpawnD / runLength(), 0, 1);
     const density = 0.0075 * (0.5 + 1.2 * prog) * course.density * difficulty.density;
@@ -174,7 +199,10 @@ function spawnRows(limitD) {
       // Håll fritt runt räcken och stockar så att de går att åka på
       if (blockedByLinear(x, d, isLinear(kind) ? 5 : 3)) continue;
       if (BLOCKS_LANDING.has(kind.type) && inLandingZone(x, d, isLinear(kind) ? 1 : 1.5)) continue;
-      if (kind.type !== 'star' && featureY(x, d) > 0.02) continue; // inget på landningsvallar
+      // Klippans uppfart: träd och stenar får stå där, men inga puckar eller stockar (de skulle försvinna i snön)
+      const onCliff = course.cliffs && features.some((f) => f.cliff && d > f.d0 - 30 && d < f.d3 + f.land);
+      if (onCliff && (kind.type === 'bump' || isLinear(kind))) continue;
+      if (kind.type !== 'star' && featureY(x, d) > 0.02 && !(onCliff && featureY(x, d) === cliffY(x, d))) continue; // inget på landningsvallar
       if (featureY(x, d) < -0.3) continue; // inget nere i Big Air-gapet
       // Big Air: fri uppfart till kickern och fri landning – träden står mellan hoppen
       if (kind.type !== 'star' && features.some((f) => f.mega && d > f.d0 - 25 && d < f.d3 + 6)) continue;
@@ -235,6 +263,7 @@ function resetWorld() {
   run = { tricks: 0, stars: 0, gates: 0, missed: 0, maxSpeed: 0, maxAir: 0 };
   nextSpawnD = 20;
   nextMegaD = 60;
+  nextCliffD = 0;
   nextGateD = 60;
   features = [];
   calmZones = [];

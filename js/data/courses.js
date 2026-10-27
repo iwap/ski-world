@@ -36,9 +36,11 @@ const COURSES = {
   // Off-pist: åk genom skogen. Inga byggda hopp eller räcken – bara omkullfallna träd att grinda på
   // och naturliga snöpuckar (bump) att hoppa från
   offpiste: {
-    // Halva längden men tre gånger så många träd (övriga hinder lika många som förut)
-    slope: 0.34, waves: [[0.1, 0.014, 0.5], [0.05, 0.037, 2]], bumps: 1.6, moguls: 0, density: 4.4, offpiste: true, lengthMult: 0.5,
-    weights: { tree: 138, pine: 54, rock: 20, stump: 14, snowman: 0, ramp: 0, star: 6, rail: 0, log: 16, box: 0, bump: 40 },
+    // Halva längden, smal och tät skog. Djup pudersnö, små puckar överallt och ibland en klippa över hela bredden.
+    // density är lägre än den ser ut: hindren sprids på en mycket smalare yta (netX) än på de breda banorna
+    slope: 0.34, waves: [[0.1, 0.014, 0.5], [0.05, 0.037, 2]], bumps: 1.6, lumps: 0.25, moguls: 0, density: 1.4,
+    offpiste: true, powder: true, cliffs: true, lengthMult: 0.5, netX: 18,
+    weights: { tree: 138, pine: 54, rock: 20, stump: 14, snowman: 0, ramp: 0, star: 6, rail: 0, log: 16, box: 0, bump: 70 },
   },
 };
 // Banorna låses upp med pengar (classic är gratis). Dyrare bana = mer pengar per åk och trick.

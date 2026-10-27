@@ -65,7 +65,8 @@ function land() {
   p.vz = 0;
   p.squash = small ? 0.4 : 1;
   const f = feet();
-  burst(f.x, f.y + 0.1, f.z, small ? 8 : 45, small ? 2 : 4, 0.45);
+  const pw = course.powder ? 2.5 : 1;
+  burst(f.x, f.y + 0.1, f.z, Math.round((small ? 8 : 45) * pw), small ? 2 : 4 * Math.sqrt(pw), 0.45 * Math.sqrt(pw));
   const fail = collectAirTricks();
   if (fail) return crash(fail);
   if (run.maxAir >= 8) earnBadge('bigair');
@@ -201,7 +202,8 @@ function updateGrind(dt, s) {
 function emitCarve(dt, s) {
   const p = player;
   const turning = Math.abs(p.turnVel) / s.turnRate;
-  sprayAcc += p.speed * (0.4 + turning * 9 + p.braking * 14) * dt;
+  const powder = course.powder ? 1 : 0; // djup pudersnö i off-pist
+  sprayAcc += p.speed * (0.4 + turning * 9 + p.braking * 14 + powder * (2.5 + turning * 12)) * dt;
   if (sprayAcc < 1) return;
 
   const f = feet();
@@ -220,10 +222,10 @@ function emitCarve(dt, s) {
     emit(
       f.x - fx * back + rx * ski * 0.14, f.y + 0.05, f.z - fz * back + rz * ski * 0.14,
       fx * fwd + rx * side + (Math.random() - 0.5),
-      (strong ? 1.2 + Math.random() * 3.5 : 0.3 + Math.random()) * Math.min(1, p.speed / 10),
+      ((strong ? 1.2 + Math.random() * 3.5 : 0.3 + Math.random()) + powder * (1.5 + Math.random() * 3)) * Math.min(1, p.speed / 10),
       fz * fwd + rz * side + (Math.random() - 0.5),
-      0.15 + Math.random() * 0.25,
-      0.35 + Math.random() * 0.45,
+      0.15 + Math.random() * 0.25 + powder * (0.2 + Math.random() * 0.35),
+      0.35 + Math.random() * 0.45 + powder * 0.5,
     );
   }
 }
@@ -314,7 +316,7 @@ function updateAir(dt, s) {
 function checkCollisions(s) {
   const p = player;
   for (const o of objects) {
-    if (o.taken || o.type === 'gate' || o.type === 'spine' || o.type === 'rollers' || o.type === 'bump' || o.type === 'deco') continue; // portar, terrängformer och dekor
+    if (o.taken || o.type === 'gate' || o.type === 'spine' || o.type === 'rollers' || o.type === 'bump' || o.type === 'cliff' || o.type === 'deco') continue; // portar, terrängformer och dekor
 
     if (isLinear(o)) {
       const info = linearInfo(o, p.x, p.d);

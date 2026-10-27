@@ -61,6 +61,7 @@ const OBSTACLES = [
   { type: 'spine',   weight: 0,  r: 0,    h: 0 },
   { type: 'rollers', weight: 0,  r: 0,    h: 0 },
   { type: 'bump',    weight: 0,  r: 0,    h: 0 }, // naturlig snöpuck i off-pist: ett litet hopp utan markeringar
+  { type: 'cliff',   weight: 0,  r: 0,    h: 0 }, // klippa över hela bredden i off-pist
   // Sådant som finns i riktiga backar
   { type: 'cannon',  weight: 0,  r: 0.35, h: 99, crash: 'crash.cannon' },
   { type: 'sign',    weight: 0,  r: 0.2,  h: 99, crash: 'crash.sign' },
@@ -161,6 +162,38 @@ function buildLipLine(o) {
   return g;
 }
 
+// Klippväggen: ojämna stenblock i olika storlek längs hela kanten, med snö ovanpå
+function buildCliffFace(o) {
+  const f = o.feature;
+  const g = new THREE.Group();
+  const w = netX() + 8;
+  const geos = [MODELS.rock0.mesh.geometry, MODELS.rock1.mesh.geometry];
+  for (let x = -w; x <= w; x += 1.6 + Math.random() * 1.2) {
+    const m = new THREE.Mesh(geos[Math.floor(Math.random() * 2)], objMat);
+    // Stenens modell är ungefär 2,4 m bred och 1,3 m hög
+    const h = f.H * (0.75 + Math.random() * 0.35);
+    m.scale.set(0.9 + Math.random() * 0.8, h / 1.3, 0.6 + Math.random() * 0.5);
+    const dd = f.lip + (f.d3 - f.lip) * (0.4 + Math.random() * 0.5);
+    m.position.set(x, baseY(f.d3) + f.H - h * 0.75 + Math.random() * 0.3, -dd);
+    m.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.3);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    g.add(m);
+  }
+  // Några nedfallna block vid foten (bara vid sidorna, så att landningen är fri)
+  for (let i = 0; i < 4; i++) {
+    const m = new THREE.Mesh(geos[i % 2], objMat);
+    const s = 0.5 + Math.random() * 0.6;
+    m.scale.setScalar(s);
+    const x = (i < 2 ? -1 : 1) * (netX() + 1 + Math.random() * 5);
+    m.position.set(x, baseY(f.d3 + 2), -(f.d3 + 1 + Math.random() * 3));
+    m.rotation.y = Math.random() * Math.PI * 2;
+    g.add(m);
+  }
+  scene.add(g);
+  return g;
+}
+
 function makeObject(t, x, d, opts = {}) {
   const o = { ...t, x, d, dEnd: d, s: 1, rot: Math.random() * Math.PI * 2, tint: null, taken: false, model: t.type };
   const k = 0.82 + Math.random() * 0.25;
@@ -207,11 +240,25 @@ function makeObject(t, x, d, opts = {}) {
       // Upp till ett krön och sedan en lång, mjuk slänt ner att landa i
       const H = 0.9 + Math.random() * 0.7;
       const up = 5 + Math.random() * 2;
-      const half = 2.2 + Math.random() * 1.5;
-      o.feature = { bump: true, x, H, hK: H, half, kHalf: half, sideW: 3, d0: d, lip: d + up, d1: d + up, d3: d + up + 10 + H * 4, vz: 4.5 + H * 2 };
+      const half = 1.5 + Math.random();
+      o.feature = { bump: true, x, H, hK: H, half, kHalf: half, sideW: 2.2, d0: d, lip: d + up, d1: d + up, d3: d + up + 10 + H * 4, vz: 4.5 + H * 2 };
       features.push(o.feature);
       o.dEnd = o.feature.d3;
-      o.zone = { x, d: d + up, ux: 0, ud: 1, len: 24, half: 3 };
+      o.zone = { x, d: d + up, ux: 0, ud: 1, len: 24, half: 2.5 };
+      break;
+    }
+    case 'cliff': {
+      // Små, mellanstora och stora klippor. Marken byggs långsamt upp mot kanten (fortfarande nedför)
+      // och stupar sedan nästan rakt ner. land = fri sträcka nedanför där man landar.
+      const r = Math.random();
+      const H = r < 0.4 ? 2 + Math.random() * 2 : r < 0.8 ? 4 + Math.random() * 3 : 8 + Math.random() * 4;
+      const lip = d + 9 * H + 6;
+      const w = netX() + 3;
+      o.feature = { cliff: true, x: 0, H, hK: H, half: w, kHalf: w, sideW: 4, d0: d, lip, d1: lip, d3: lip + 1 + H * 0.2, vz: 2.5, land: 14 + H * 2.2 };
+      features.push(o.feature);
+      o.dEnd = o.feature.d3;
+      o.zone = { x: 0, d: lip, ux: 0, ud: 1, len: o.feature.land, half: w };
+      o.mesh = buildCliffFace(o);
       break;
     }
     case 'ramp': {
