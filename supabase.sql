@@ -196,3 +196,41 @@ alter table public.scores add constraint scores_course_check
 alter table public.course_replays drop constraint if exists course_replays_course_check;
 alter table public.course_replays add constraint course_replays_course_check
   check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair', 'offpiste'));
+
+-- ---------- Tomtens presenter ----------
+-- Var 15:e minut (omgång win = unix-tid / 900) finns 100 presenter. Den som tar en först får den – en rad per present.
+create table if not exists public.present_claims (
+  win bigint not null,
+  idx smallint not null check (idx between 0 and 99),
+  player_id uuid not null,
+  created_at timestamptz not null default now(),
+  primary key (win, idx)
+);
+alter table public.present_claims enable row level security;
+drop policy if exists "read present claims" on public.present_claims;
+create policy "read present claims" on public.present_claims for select to anon, authenticated using (true);
+-- Alla får se vilka presenter som är tagna, men inte av vem. Skrivs bara via claim_present.
+revoke all on public.present_claims from anon, authenticated;
+grant select (win, idx) on public.present_claims to anon, authenticated;
+
+create or replace function public.claim_present(p_win bigint, p_idx integer) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  cur bigint := floor(extract(epoch from now()) / 900);
+begin
+  -- Bara inloggade, bara den här (eller nyss slutade) omgången
+  if uid is null or p_idx not between 0 and 99 or p_win not between cur - 1 and cur then
+    return false;
+  end if;
+  -- Spamskydd: högst en present i sekunden per spelare
+  if exists (select 1 from present_claims where player_id = uid and created_at > now() - interval '1 second') then
+    return false;
+  end if;
+  -- Gamla omgångar behövs inte (håller tabellen liten)
+  delete from present_claims where win < cur - 8;
+  insert into present_claims (win, idx, player_id) values (p_win, p_idx, uid) on conflict do nothing;
+  return found;
+end $$;
+revoke all on function public.claim_present(bigint, integer) from public, anon;
+grant execute on function public.claim_present(bigint, integer) to authenticated;

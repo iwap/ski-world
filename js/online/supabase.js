@@ -117,6 +117,14 @@ const Online = (() => {
     const res = await fetch(`${api}/rpc/save_course_replay`, { method: 'POST', headers: await headers(), body: JSON.stringify(body) });
     return res.ok;
   }
-  return { on, client, auth, submit, flush, top, mine, rank, claimName, dailyTop, dailyReplayIds, dailyReplay, saveReplay, courseReplayIds, courseReplay, saveCourseReplay };
+  // Tomtens presenter: vilka som redan är tagna den här omgången, och att ta en (true = jag var först)
+  const presentClaims = async (win) => (await get(`present_claims?select=idx&win=eq.${win}`)).json();
+  async function claimPresent(win, idx) {
+    if (!(await auth())) throw new Error('offline');
+    const res = await fetch(`${api}/rpc/claim_present`, { method: 'POST', headers: await headers(), body: JSON.stringify({ p_win: win, p_idx: idx }) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`); // t.ex. offline – inte samma sak som att någon annan var först
+    return (await res.json()) === true;
+  }
+  return { on, client, auth, submit, flush, top, mine, rank, claimName, dailyTop, dailyReplayIds, dailyReplay, saveReplay, courseReplayIds, courseReplay, saveCourseReplay, presentClaims, claimPresent };
 })();
 Online.flush();

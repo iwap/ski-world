@@ -61,7 +61,7 @@ function overlaps(x, d, radius) {
   for (let i = objects.length - 1; i >= 0; i--) {
     const e = objects[i];
     // Portarna skapas en bit före övriga hinder, så listan är inte helt sorterad – hoppa bara över avlägsna
-    if (Math.abs(e.d - d) > 12 || isLinear(e)) continue; // räcken hanteras av blockedByLinear
+    if (Math.abs(e.d - d) > 12 || isLinear(e) || e.type === 'present') continue; // räcken hanteras av blockedByLinear, presenterna påverkar inte backen
     const r = radius + footprint(e) + 0.3;
     if ((e.x - x) ** 2 + (e.d - d) ** 2 < r * r) return true;
   }
@@ -171,6 +171,20 @@ function cabinRoof(o, x, d) {
   return CABIN.ridge - u * (CABIN.ridge - CABIN.eave) / CABIN.halfW;
 }
 
+// Nocken som en osynlig rail: landar man snett på taket grindar man längs den
+function cabinRidge(o) {
+  if (o.ridge) return o.ridge;
+  const y = groundY(o.x, o.d) + CABIN.ridge;
+  const n = 6;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const s = (i / n) * CABIN.halfL * 2;
+    pts.push({ x: o.x, d: o.d - CABIN.halfL + s, y, s });
+  }
+  o.ridge = { type: 'ridge', crash: 'crash.hut', ptsPerM: 18, r: 0.3, pts, len: CABIN.halfL * 2 };
+  return o.ridge;
+}
+
 const snowcatGeo = buildGeometry([
   { geo: new THREE.BoxGeometry(2.6, 1.2, 4).translate(0, 1.3, 0), color: C('#d32f2f') },
   { geo: new THREE.BoxGeometry(2.2, 1.2, 1.8).translate(0, 2.5, -0.5), color: C('#c62828') },
@@ -250,7 +264,7 @@ function inLandingZone(x, d, radius) {
 // ---------- Plats på marken: inget får stå inuti något annat ----------
 // Varje sak tar plats som cirklar (hinder, punkter längs räcken) eller rektanglar (hopp med landning, spines, rollers).
 // Lite marginal runt allt så att sakerna inte heller nuddar varandra.
-const SOLID_R = { tree: 0.6, pine: 0.5, rock: 0.8, stump: 0.4, snowman: 0.6, cannon: 0.5, sign: 0.4, star: 0.5 };
+const SOLID_R = { tree: 0.6, pine: 0.5, rock: 0.8, stump: 0.4, snowman: 0.6, cannon: 0.5, sign: 0.4, star: 0.5, present: 0.6 };
 const SHAPE_PAD = 0.3;
 
 function shapesOf(o) {
@@ -297,13 +311,13 @@ function collides(o, ignore = null) {
   if (!A.length) return false;
   const a = o.box;
   for (const e of objects) {
-    if (e === o || e === ignore || e.jump === o || o.jump === e) continue;
+    if (e === o || e === ignore || e.jump === o || o.jump === e || e.type === 'present') continue; // presenterna påverkar inte backen
     const B = shapesOf(e);
     if (!B.length) continue;
     const b = e.box;
     if (a.x0 > b.x1 || b.x0 > a.x1 || a.d0 > b.d1 || b.d0 > a.d1) continue;
-    // Stjärnor svävar: de får ligga över hopp och landningar (men inte i träd eller på räcken)
-    if (o.type === 'star' && (e.type === 'star' || !B[0].r)) continue;
+    // Stjärnor och presenter svävar: de får ligga över hopp och landningar (men inte i träd eller på räcken)
+    if ((o.type === 'star' || o.type === 'present') && (e.type === 'star' || !B[0].r)) continue;
     if (e.type === 'star' && !A[0].r) continue;
     if (A.some((s) => B.some((t) => shapesHit(s, t)))) return true;
   }

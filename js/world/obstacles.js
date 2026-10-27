@@ -44,6 +44,14 @@ const GRADES = {
   black: { icon: '⚫', color: '#212121' },
 };
 addModel('star', new THREE.OctahedronGeometry(0.4).scale(1, 1.4, 0.5), starMat);
+// Tomtens present: rött paket med guldband och rosett
+addModel('present', buildGeometry([
+  { geo: new THREE.BoxGeometry(0.8, 0.7, 0.8), color: C('#d32f2f') },
+  { geo: new THREE.BoxGeometry(0.84, 0.72, 0.16), color: C('#ffc107') },
+  { geo: new THREE.BoxGeometry(0.16, 0.72, 0.84), color: C('#ffc107') },
+  { geo: new THREE.TorusGeometry(0.14, 0.05, 6, 10), matrix: m4().makeRotationY(Math.PI / 4).setPosition(-0.1, 0.45, 0), color: C('#ffc107') },
+  { geo: new THREE.TorusGeometry(0.14, 0.05, 6, 10), matrix: m4().makeRotationY(-Math.PI / 4).setPosition(0.1, 0.45, 0), color: C('#ffc107') },
+]), objMat, 120);
 
 const OBSTACLES = [
   { type: 'tree',    weight: 44, r: 1.0,  h: 3.6, crash: 'crash.tree' },
@@ -53,6 +61,7 @@ const OBSTACLES = [
   { type: 'snowman', weight: 4,  r: 0.6,  h: 2.0, crash: 'crash.snowman' },
   { type: 'ramp',    weight: 9,  r: 0,    h: 0 }, // hopp: bara terräng (se RAMPS)
   { type: 'star',    weight: 8,  r: 0.7,  h: 0 },
+  { type: 'present', weight: 0,  r: 0.7,  h: 0 }, // tomtens presenter (online, se presents.js)
   // Grind-objekt: ligger längs med backen, hoppa upp på dem
   { type: 'rail',    weight: 4,  r: 0.25, h: 0.7,  crash: 'crash.rail', ptsPerM: 18 },
   { type: 'log',     weight: 5,  r: 0.45, h: 0.78, crash: 'crash.log', ptsPerM: 12 },

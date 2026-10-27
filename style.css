@@ -1417,6 +1417,7 @@ body.touch .lift-skip { pointer-events: auto; padding: 12px; font-size: 16px; }
 .invite-toast { position: fixed; z-index: 60; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(440px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 18px; background: #fff; box-shadow: 0 14px 40px rgba(13, 50, 100, 0.4); border: 3px solid #3949ab; animation: card-unlock 0.4s ease; }
 .invite-text { font-weight: 900; font-size: 17px; margin-bottom: 10px; }
 .invite-btns { display: flex; gap: 10px; justify-content: flex-end; }
+.present-toast { position: fixed; z-index: 55; left: 50%; top: 80px; transform: translateX(-50%); width: min(460px, calc(100vw - 32px)); padding: 14px 18px; border-radius: 18px; background: linear-gradient(135deg, #c62828, #2e7d32); color: #fff; font-weight: 900; font-size: 18px; text-align: center; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35); pointer-events: none; animation: card-unlock 0.4s ease; }
 .countdown { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: clamp(90px, 22vw, 200px); font-weight: 900; color: #fff; text-shadow: 0 6px 0 rgba(0, 0, 0, 0.25), 0 10px 40px rgba(0, 0, 0, 0.4); }
 .race-hud { position: fixed; z-index: 20; top: 74px; left: 12px; padding: 6px 12px; border-radius: 12px; background: rgba(57, 73, 171, 0.88); color: #fff; font-weight: 900; font-size: 15px; }
 .race-res { font-weight: 900; }

@@ -74,6 +74,7 @@ runTest(async (t) => {
   // Stugan: landa på taket och åk av det. Kör man in i väggen kraschar man.
   const hutType = OBSTACLES.find((o) => o.type === 'hut');
   for (const fromAir of [true, false]) {
+    save.badges.roof = null;
     startRun();
     objects.forEach(removeObject);
     objects = [];
@@ -101,6 +102,29 @@ runTest(async (t) => {
       t.ok(save.badges.roof, 'märket Takåkare tjänades inte in');
     } else t.ok(state !== 'playing' && ['crash.hut', window.t('crash.hut')].includes(player.crashReason), `körde rakt genom stugan (${state}, ${player.crashReason})`);
   }
+  // Snett (90°) på taket: grind längs nocken
+  startRun();
+  objects.forEach(removeObject);
+  objects = [];
+  features = [];
+  nextSpawnD = 1e9;
+  nextCliffD = Infinity;
+  const hut2 = makeObject(hutType, 0, 60);
+  objects.push(hut2);
+  player.speed = 10;
+  player.d = 57;
+  launch(0);
+  player.spin = Math.PI / 2;
+  player.z = groundY(0, 60) + CABIN.ridge + 0.3 - groundY(0, 57);
+  let ground = null;
+  let parts = [];
+  play(60 * 3, () => {
+    keys.clear();
+    if (player.grind && !ground) ground = player.grind.o.type;
+    if (player.combo.parts.length) parts = player.combo.parts.slice();
+  }, { invuln: true, until: () => player.d > 68 });
+  t.eq(ground, 'ridge', 'grindade inte på nocken när man landade snett');
+  t.ok(parts.some((s) => s.startsWith('Roof')), `ingen Roof-grind i combon (${parts.join(', ')})`);
   t.note(out.join(' · '));
   showMenu();
   setCourse('classic');

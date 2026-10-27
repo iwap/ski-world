@@ -133,6 +133,7 @@ function startGrind(o, info) {
   let facing = Math.abs(q) > 2 ? Math.sign(q) * Math.PI : 0;
   const style = grindStyle(q);
   if (o.type === 'box') style.name = `Box ${style.name}`;
+  if (o.type === 'ridge') style.name = `Roof ${style.name}`;
 
   p.smallAir = false;
   Sound.grindStart(o.type);
@@ -364,6 +365,10 @@ function checkCollisions(s) {
     const dd = o.d - p.d;
     const dx = o.x - p.x;
     if (Math.abs(dd) > 4 || Math.abs(dx) > 4) continue;
+    if (o.type === 'present') {
+      if (p.z < 3 && dx * dx + dd * dd < 1.4 * 1.4) takePresent(o);
+      continue;
+    }
     if (o.type === 'star') {
       if (p.z < 3 && dx * dx + dd * dd < 1.3 * 1.3) {
         o.taken = true;
@@ -399,6 +404,15 @@ function checkCollisions(s) {
       }
       if (roof < 0) continue;
       if (p.air && p.vz <= 0 && p.z <= top + 0.1 && p.z >= top - 0.7) {
+        // Snett (på tvären) nära nocken: grind längs nocken. Rakt: åk på taket.
+        const q = Math.round(wrapAngle(p.angle + p.spin + p.facing) / (Math.PI / 4));
+        if (Math.abs(q) % 4 !== 0 && Math.abs(p.x - o.x) < 1.2) {
+          const ridge = cabinRidge(o);
+          if (startGrind(ridge, { t: clamp((p.d - ridge.pts[0].d) / ridge.len, 0, 1), lat: p.x - o.x })) {
+            if (state === 'playing') earnBadge('roof');
+            return;
+          }
+        }
         landOnRock(o, top, 'Roof ride', 60);
         if (state === 'playing') earnBadge('roof');
         if (state !== 'playing') return;

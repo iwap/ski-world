@@ -267,6 +267,7 @@ function resetWorld() {
   nextSpawnD = 20;
   nextMegaD = 60;
   nextCliffD = 0;
+  presentsReset();
   nextGateD = 60;
   features = [];
   calmZones = [];

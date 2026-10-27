@@ -217,7 +217,7 @@ function syncInstances(time) {
     const i = counts[o.model] || 0;
     if (!m || i >= m.cap) continue;
     const y = groundY(o.x, o.d);
-    if (o.type === 'star') {
+    if (o.type === 'star' || o.type === 'present') {
       dummy.position.set(o.x, y + 1.3 + Math.sin(time * 3 + o.rot) * 0.15, -o.d);
       dummy.rotation.set(0, time * 2.5 + o.rot, 0);
     } else {

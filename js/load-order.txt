@@ -41,5 +41,6 @@ ui/tutorial.js
 online/daily.js
 online/ghosts.js
 online/party.js
+online/presents.js
 ui/events.js
 main.js
