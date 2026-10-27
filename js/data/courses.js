@@ -35,7 +35,7 @@ const COURSES = {
   },
 };
 // Banorna låses upp med pengar (classic är gratis). Dyrare bana = mer pengar per åk och trick.
-const COURSE_PRICE = { classic: 0, park: 5000, moguls: 10000, pipe: 15000, slalom: 20000, bigair: 25000 };
+const COURSE_PRICE = { classic: 0, park: 3000, moguls: 6000, pipe: 9000, slalom: 12000, bigair: 15000 };
 const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom: 2, bigair: 2.25 };
 const DIFFICULTIES = {
   // finishBonus = extra pengar för att ta sig hela vägen i mål
