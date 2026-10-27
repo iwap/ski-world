@@ -66,7 +66,10 @@ function placePresents() {
     if (!o) o = makeObject(type, s.x, s.d + 3); // fullt överallt: lägg den strax efter
     o.idx = idx;
     o.win = presents.win;
-    objects.push(o);
+    // Sorterat efter sträcka – flera kontroller i världen läser listan bakifrån och slutar när de kommit tillräckligt långt upp
+    let i = objects.length;
+    while (i > 0 && objects[i - 1].d > o.d) i--;
+    objects.splice(i, 0, o);
     presents.placed.set(idx, o);
   }
 }
