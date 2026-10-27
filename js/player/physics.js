@@ -120,7 +120,7 @@ function startGrind(o, info) {
   }
   const corks = p.corks + (p.corking ? 1 : 0);
   if (corks > 0) {
-    c.parts.push(corks === 1 ? 'Cork 720' : `${corks}x cork 720`);
+    c.parts.push(corks === 1 ? 'Cork 360' : `${corks}x cork`);
     c.pts += 200 * corks;
   }
   const grabs = addGrabs(c);
@@ -307,7 +307,7 @@ function updateAir(dt, s) {
     p.corkDir = p.spin < 0 || isLeft() ? -1 : 1; // åt samma håll som man redan snurrar
   }
   if (p.corking) {
-    p.corkProg += dt / (s.flipTime * 1.25);
+    p.corkProg += dt / (s.flipTime * 1.1);
     if (p.corkProg >= 1) {
       p.corking = false;
       p.trickCd = TRICK_COOLDOWN;

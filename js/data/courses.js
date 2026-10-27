@@ -53,8 +53,8 @@ const COURSE_REWARD = { classic: 1, park: 1.25, moguls: 1.5, pipe: 1.75, slalom:
 const DIFFICULTIES = {
   // finishBonus = extra pengar för att ta sig hela vägen i mål
   easy:   { length: 1000, density: 0.6,  speed: 0.9,  balance: 0.6, points: 0.75, finishBonus: 0 },
-  normal: { length: 1500, density: 1,    speed: 1,    balance: 1,   points: 1,    finishBonus: 750 },
-  hard:   { length: 2000, density: 1.45, speed: 1.12, balance: 1.4, points: 1.5,  finishBonus: 2000 },
+  normal: { length: 1500, density: 1,    speed: 1,    balance: 1,   points: 1,    finishBonus: 600 },
+  hard:   { length: 2000, density: 1.45, speed: 1.12, balance: 1.4, points: 1.5,  finishBonus: 1600 },
 };
 let course = COURSES.classic;
 const netX = () => course.netX || NET_X; // avspärrningsnätens läge för den valda banan

@@ -600,7 +600,7 @@ function sigLabel(sig) {
       return n === 1 ? base : n === 2 ? t(m[1] === 'back' ? 'trick.doubleBackflip' : 'trick.doubleFrontflip') : `${n}x ${base.toLowerCase()}`;
     }
     m = s.match(/^cork(\d+)$/);
-    if (m) return m[1] === '1' ? 'Cork 720' : m[1] === '2' ? 'Double cork 1440' : `${m[1]}x cork`;
+    if (m) return m[1] === '1' ? 'Cork 360' : m[1] === '2' ? 'Double cork' : `${m[1]}x cork`;
     const g = GRABS.find((x) => `grab-${x.id}` === s);
     return g ? g.name : s;
   }).join(' + ');
@@ -759,6 +759,7 @@ function checkSessionEnd() {
   finishSession([...order.map((e) => e.id), ...left], order);
 }
 
+const RACE_WIN_MULT = 1.5; // vinnaren av ett race får 1,5 gånger pengarna för åket
 const PRIZES = { duel: [1500, 300], bigair: [2000, 800, 300], pslalom: null, race: null };
 
 // Placeringar klara: pengar, text och revansch
@@ -773,13 +774,13 @@ function finishSession(ids, entries = null, forfeit = false) {
     return e.finished ? ` (${e.time.toFixed(1)} s)` : ` (${fmt(e.dist)} m)`;
   };
   const lines = ids.map((id, i) => `${['🥇', '🥈', '🥉'][i] || `${i + 1}.`} ${name(id)}${r.others.get(id) && r.others.get(id).left ? ` – ${t('party.gone')}` : scoreOf(id)}`);
-  // Pris: race/parallellslalom: vinnaren får dubbla pengar för åket. Minilägen: fasta priser per placering.
+  // Pris: race/parallellslalom: vinnaren får 1,5 gånger pengarna för åket (en halv extra). Minilägen: fasta priser per placering.
   // Inga pris om motståndaren gav upp, och i Big Air-tävlingen bara om man fått poäng
   let prize = 0;
   const myTotal = entries && (entries.find((e) => e.id === save.playerId) || {}).total;
   if (forfeit || (r.mode === 'bigair' && !myTotal)) prize = 0;
   else if (PRIZES[r.mode]) prize = PRIZES[r.mode][Math.min(myPlace, PRIZES[r.mode].length - 1)];
-  else if (myPlace === 0 && r.myDone && r.myDone.score > 0) prize = r.myDone.score;
+  else if (myPlace === 0 && r.myDone && r.myDone.score > 0) prize = Math.round(r.myDone.score * (RACE_WIN_MULT - 1));
   if (prize > 0) {
     save.bank += prize;
     persist();

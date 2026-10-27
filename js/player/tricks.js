@@ -153,7 +153,7 @@ function collectAirTricks() {
     c.pts += 170 * fronts * (fronts + 1) / 2;
   }
   if (corks > 0) {
-    c.parts.push(corks === 1 ? 'Cork 720' : corks === 2 ? 'Double cork 1440' : `${corks}x cork`);
+    c.parts.push(corks === 1 ? 'Cork 360' : corks === 2 ? 'Double cork' : `${corks}x cork`);
     c.pts += 200 * corks * (corks + 1) / 2;
     c.sig.push(`cork${corks}`);
     earnBadge('cork');

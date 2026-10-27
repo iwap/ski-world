@@ -9,8 +9,7 @@ const gateMats = {
   red: new THREE.MeshLambertMaterial({ color: '#e53935', side: THREE.DoubleSide }),
   blue: new THREE.MeshLambertMaterial({ color: '#1e88e5', side: THREE.DoubleSide }),
 };
-const gatePoleGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.9, 6).translate(0, 0.95, 0);
-const gateFlagGeo = new THREE.PlaneGeometry(0.55, 0.4);
+const gatePoleGeo = new THREE.CylinderGeometry(0.025, 0.025, 1.8, 6).translate(0, 0.9, 0); // vanliga slalomkäppar
 let nextGateD = 0;
 let gateSide = 1;
 let lastGate = null;
@@ -23,13 +22,6 @@ function buildGate(o) {
     pole.position.set(s * GATE_HALF, 0, 0);
     pole.castShadow = true;
     g.add(pole);
-  }
-  // En liten flagga på varje stång, inåt mot porten
-  for (const s of [-1, 1]) {
-    const flag = new THREE.Mesh(gateFlagGeo, mat);
-    flag.position.set(s * (GATE_HALF - 0.3), 1.65, 0);
-    flag.castShadow = true;
-    g.add(flag);
   }
   g.position.set(o.x, groundY(o.x, o.d), -o.d);
   return g;
@@ -291,5 +283,5 @@ function resetWorld() {
 
 const courseUnlocked = (id = save.course) => save.courses.includes(id);
 const pointsMult = () => difficulty.points * (COURSE_REWARD[save.course] || 1) * (COURSE_POINTS[save.course] || 1) * (1 + ability('coins'));
-const SCORE_SCALE = 0.5; // alla poäng från åket (distans, tricks, stjärnor) halveras
+const SCORE_SCALE = 0.4; // alla poäng från åket (distans, tricks, stjärnor)
 const runScore = () => (Math.round((Math.floor(player.d) + run.tricks + run.stars) * pointsMult() * SCORE_SCALE) + (run.finishBonus || 0)) * (run.finished ? FINISH_MULT : 1);

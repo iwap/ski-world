@@ -53,6 +53,6 @@ runTest(async (t) => {
   })();
   t.ok(late.state !== 'playing', `en halv cork vid landningen borde krascha (${late.state})`);
   t.eq(trickSig({ sig: ['cork1', 'spin360'] }).join(','), 'cork1,spin360', 'trick-duellen känner igen cork');
-  t.eq(sigLabel(['cork1']), 'Cork 720', 'cork har ett namn i trick-duellen');
+  t.eq(sigLabel(['cork1']), 'Cork 360', 'cork har ett namn i trick-duellen');
   showMenu();
 });
