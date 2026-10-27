@@ -39,6 +39,7 @@ ui/hud.js
 ui/touch.js
 ui/tutorial.js
 online/daily.js
+online/ghosts.js
 online/party.js
 ui/events.js
 main.js

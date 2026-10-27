@@ -26,6 +26,7 @@ function frame(now) {
   const inMenu = state === 'menu' || state === 'shop';
   updateRace(dt);
   updateDaily(dt);
+  updateRunSeed(dt);
   updateWorld(state === 'paused' ? 0 : dt, time);
   updateCamera(dt, time, wasMenu && !inMenu);
   wasMenu = inMenu;

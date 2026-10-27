@@ -52,8 +52,9 @@ function update(dt) {
       p.z += p.vz * dt - db; // marken under rör sig när man flyger över puckar
       p.maxZ = Math.max(p.maxZ || 0, p.z);
       if (p.z <= 0) land();
-    } else if (db < -0.6 && !p.onRock) {
-      // Marken försvann under en (en kant) – fall ner istället för att teleporteras
+    } else if (db < -0.6 && !p.onRock && !(inPipe(p.d) && Math.abs(p.x) < PIPE_COPING + 0.3)) {
+      // Marken försvann under en (en kant) – fall ner istället för att teleporteras.
+      // Pipens väggar är branta men ingen kant: där följer man väggen ner efter landningen.
       p.air = true;
       p.smallAir = true;
       p.z = -db;

@@ -386,6 +386,7 @@ function buildSessionWorld() {
 
 function beginSession(start) {
   if (race) return;
+  endRunSeed();
   const others = new Map();
   for (const m of start.members) {
     if (m.id === save.playerId) continue;
@@ -822,6 +823,12 @@ function renderRaceResult() {
     el.textContent = `🗓️ ${dailyResultText}`;
     el.className = 'rank race-res race-me';
     dailyResultText = null;
+    return;
+  }
+  if (ghostResultText) {
+    el.textContent = ghostResultText.text;
+    el.className = `rank race-res race-${ghostResultText.w}`;
+    ghostResultText = null;
     return;
   }
   $('btn-rematch').classList.toggle('hidden', !(lastSession && lastSession.others.length && !race));

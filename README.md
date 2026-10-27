@@ -33,7 +33,7 @@ Filerna i `js/` laddas som vanliga `<script>`-filer i den ordning som står i `j
 
 ## Tester
 
-Testerna kör spelet i Chrome utan fönster och kontrollerar bland annat att alla banor går att åka i mål, att Big Air-gapen fungerar, slalom, halfpipe, tutorialen, karaktärsboxens chanser, dagens utmaning och alla online-lägen (mot en låtsasserver – inget skickas till den riktiga).
+Testerna kör spelet i Chrome utan fönster och kontrollerar bland annat att alla banor går att åka i mål, att Big Air-gapen fungerar, slalom, halfpipe, tutorialen, karaktärsboxens chanser, dagens utmaning, spökjakter och alla online-lägen (mot en låtsasserver – inget skickas till den riktiga).
 
 ```sh
 cd tests
@@ -46,4 +46,4 @@ Kräver Node.js och Google Chrome (eller Chromium – sätt `CHROME_PATH` om den
 
 ## Server (Supabase)
 
-Global topplista, unika namn, online-lägen och dagens utmaning använder ett gratis Supabase-projekt. `supabase.sql` innehåller hela databasen och kan köras flera gånger. Spelarna loggas in anonymt och kan bara spara sina egna resultat. Utan nycklar i `config.js` fungerar allt utom online-delarna.
+Global topplista, unika namn, online-lägen, dagens utmaning och spöken använder ett gratis Supabase-projekt. `supabase.sql` innehåller hela databasen och kan köras flera gånger. Spelarna loggas in anonymt och kan bara spara sina egna resultat. Utan nycklar i `config.js` fungerar allt utom online-delarna.

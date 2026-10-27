@@ -1,7 +1,8 @@
 'use strict';
 // Ett åk: start, paus, poäng, sparning av resultat och resultatskärmen.
 
-function startRun() {
+// ghost = spöket man jagar (då byggs banan från spökets frö)
+function startRun(ghost = null) {
   leaveJoinedGroup();
   raceResultText = null;
   if (race) leaveSession();
@@ -11,7 +12,7 @@ function startRun() {
     if (state !== 'menu') return showMenu();
     return unlockCourse();
   }
-  resetWorld();
+  seedRun(ghost);
   $('popups').innerHTML = '';
   wasMenu = true; // kameran hoppar direkt till starten istället för att svepa genom backen
   player.speed = stats().cruise;
@@ -35,6 +36,7 @@ function recordRun() {
   const dist = Math.min(runLength(), Math.floor(player.d));
   const total = runScore();
   const record = total > save.best;
+  const ghost = finishRunSeed(total, dist >= runLength() && !player.dq);
   save.bank += total;
   save.best = Math.max(save.best, total);
   save.bestDist = Math.max(save.bestDist, dist);
@@ -56,7 +58,10 @@ function recordRun() {
     Online.submit({
       player_id: save.playerId, name: entry.name.slice(0, 24), score: total, dist,
       course, difficulty: save.difficulty, rider: save.rider,
-    }).then(() => Online.rank(course, total)).then((r) => {
+    }).then((accepted) => {
+      if (ghost && accepted) Online.saveCourseReplay(ghost).catch(() => {});
+      return Online.rank(course, total);
+    }).then((r) => {
       if (!r) return;
       globalRank = r;
       setText('go-grank', t('go.grank', { rank: r }));

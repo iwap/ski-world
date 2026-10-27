@@ -17,6 +17,7 @@
     <div class="stat"><span class="label" data-i18n="hud.slope">Lutning</span><span id="hud-slope">0°</span></div>
     <div class="stat"><span class="label" data-i18n="hud.dir">Åker</span><span id="hud-dir">Framlänges</span></div>
     <div class="stat"><span class="label" data-i18n="hud.lives">Hjälmar</span><span id="hud-lives">–</span></div>
+    <div class="stat hidden" id="hud-ghost-wrap"><span class="label" data-i18n="ghost.hud">👻 Spöket</span><span id="hud-ghost">0 m</span></div>
     <div class="stat hidden" id="hud-gates-wrap"><span class="label" data-i18n="hud.gates">Portar</span><span id="hud-gates">0</span></div>
   </div>
   <div id="chain" class="chain hidden"><div id="chain-text" class="chain-text"></div><div class="chain-track"><div id="chain-bar" class="chain-bar"></div></div></div>
@@ -101,6 +102,7 @@
       <div id="course-dots" class="course-dots" aria-hidden="true"></div>
       <p id="menu-summary" class="summary"></p>
       <button id="btn-play" class="menu-play" data-autofocus>Åk!</button>
+      <button id="btn-ghost-me" class="ghost-btn hidden"><span data-i18n="ghost.chaseMine">👻 Jaga mitt bästa</span> · 🪙 <span id="ghost-me-score"></span></button>
       <button id="btn-daily" class="daily-btn"><span aria-hidden="true">🗓️</span> <span data-i18n="daily.title">Dagens utmaning</span></button>
       <p class="small keys-hint menu-keys"><kbd>←</kbd><kbd>→</kbd> <span data-i18n="menu.browse">bläddra</span> · <kbd>↑</kbd><kbd>↓</kbd> <span data-i18n="keys.select">välj</span> · <kbd>Enter</kbd> <span data-i18n="keys.press">tryck</span></p>
     </div>
@@ -443,6 +445,7 @@
   <script src="js/ui/touch.js"></script>
   <script src="js/ui/tutorial.js"></script>
   <script src="js/online/daily.js"></script>
+  <script src="js/online/ghosts.js"></script>
   <script src="js/online/party.js"></script>
   <script src="js/ui/events.js"></script>
   <script src="js/main.js"></script>

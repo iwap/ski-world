@@ -94,6 +94,7 @@ function startDaily(ghostRep = null) {
   raceResultText = null;
   if (race) leaveSession();
   if (party.hosting) cancelHosting();
+  endRunSeed();
   endDaily();
   const info = dayInfo();
   daily = { ...info, rec: [], t: 0, next: 0, prev: { course: save.course, difficulty: save.difficulty }, ghost: null, done: false };
@@ -105,18 +106,7 @@ function startDaily(ghostRep = null) {
   resetWorld();
   worldRng = null;
   daily.rng = mulberry32(info.seed + 1);
-  if (ghostRep) {
-    const mesh = makeNpcMesh();
-    mesh.add(makeNameTag(`👻 ${ghostRep.name}`));
-    mesh.traverse((o) => {
-      if (o.material && !o.isSprite) {
-        o.material = o.material.clone();
-        o.material.transparent = true;
-        o.material.opacity = 0.55;
-      }
-    });
-    daily.ghost = { data: ghostRep.data, mesh };
-  }
+  if (ghostRep) daily.ghost = { data: ghostRep.data, mesh: makeGhostMesh(ghostRep.name) };
   $('popups').innerHTML = '';
   wasMenu = true;
   player.speed = stats().cruise;
@@ -135,23 +125,10 @@ function updateDaily(dt) {
     daily.t += dt;
     if (daily.t >= daily.next) {
       daily.next += REPLAY_STEP;
-      daily.rec.push(Math.round(p.x * 10), Math.round(p.d * 10), Math.round(p.z * 10), Math.round(p.angle * 100), Math.round(p.spin * 100));
+      recordFrame(daily.rec);
     }
   }
-  const g = daily.ghost;
-  if (g) {
-    const n = g.data.length / 5;
-    const f = Math.min(daily.t / REPLAY_STEP, n - 1);
-    const i = Math.floor(f);
-    const k = f - i;
-    const j = Math.min(i + 1, n - 1);
-    const v = (o) => (g.data[i * 5 + o] + (g.data[j * 5 + o] - g.data[i * 5 + o]) * k);
-    const x = v(0) / 10;
-    const d = v(1) / 10;
-    g.mesh.visible = n > 1;
-    g.mesh.position.set(x, groundY(x, d) + v(2) / 10, -d);
-    g.mesh.rotation.set(0, -v(3) / 100 + v(4) / 100, 0);
-  }
+  if (daily.ghost) placeGhost(daily.ghost, daily.t);
 }
 
 // Dagens åk är slut: pengar som vanligt, dagstopplistan och spöket – inte den vanliga topplistan.

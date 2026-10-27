@@ -73,8 +73,10 @@ function pickObstacle() {
 }
 
 // Räknar ut var spelaren landar i normal fart och lägger en landningsslänt där
-// Under ett race byggs banan av grundvärden så att båda spelarna får exakt samma bana
+// Under ett race byggs banan av grundvärden så att båda spelarna får exakt samma bana.
+// Ett vanligt åk byggs av värdena det startade med (eller spökets, så att jakten får samma bana).
 function worldStats() {
+  if (runSeed && !race && !daily && !tutorial) return runSeed.ws;
   if (!worldRng) return stats();
   return { cruise: Math.min(100, 50 * difficulty.speed) * KMH, jumpPower: 1 };
 }

@@ -142,3 +142,48 @@ create policy "ski realtime read" on realtime.messages for select to authenticat
 drop policy if exists "ski realtime write" on realtime.messages;
 create policy "ski realtime write" on realtime.messages for insert to authenticated
   with check ((select realtime.topic()) like 'ski-%');
+
+-- ---------- Spöken på vanliga banor ----------
+-- Varje spelares bästa åk per bana, med fröet som byggde banan så att den som jagar spöket får exakt samma bana.
+-- Sparas bara via save_course_replay, och bara om det finns ett nyss sparat resultat med samma poäng.
+create table if not exists public.course_replays (
+  player_id text not null,
+  course text not null check (course in ('classic', 'park', 'moguls', 'pipe', 'slalom', 'bigair')),
+  name text not null check (char_length(name) between 1 and 24),
+  score integer not null check (score between 1 and 200000),
+  difficulty text not null check (difficulty in ('easy', 'normal', 'hard')),
+  rider text not null check (rider in ('ski', 'board')),
+  seed bigint not null check (seed between 0 and 4294967295),
+  cruise double precision not null check (cruise between 1 and 40),
+  jump double precision not null check (jump between 0.5 and 3),
+  time double precision check (time between 0 and 3600),
+  data jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (player_id, course)
+);
+alter table public.course_replays enable row level security;
+drop policy if exists "read course replays" on public.course_replays;
+create policy "read course replays" on public.course_replays for select to anon, authenticated using (true);
+revoke insert, update, delete on public.course_replays from anon, authenticated;
+
+create or replace function public.save_course_replay(p_course text, p_score integer, p_name text, p_difficulty text, p_rider text,
+  p_seed bigint, p_cruise double precision, p_jump double precision, p_time double precision, p_data jsonb) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare uid text := (select auth.uid())::text;
+begin
+  if uid is null or p_data is null or jsonb_typeof(p_data) <> 'array' or octet_length(p_data::text) > 120000 then return false; end if;
+  -- Spöket måste höra till ett riktigt åk som nyss sparades (samma bana och poäng)
+  if not exists (select 1 from scores where player_id = uid and course = p_course and day is null and score = p_score
+                 and difficulty = p_difficulty and created_at > now() - interval '15 minutes') then return false; end if;
+  insert into course_replays (player_id, course, name, score, difficulty, rider, seed, cruise, jump, time, data)
+    values (uid, p_course, left(coalesce(nullif(trim(p_name), ''), '?'), 24), p_score, p_difficulty, p_rider, p_seed, p_cruise, p_jump, p_time, p_data)
+    on conflict (player_id, course) do update
+      set name = excluded.name, score = excluded.score, difficulty = excluded.difficulty, rider = excluded.rider, seed = excluded.seed,
+          cruise = excluded.cruise, jump = excluded.jump, time = excluded.time, data = excluded.data, created_at = now()
+      where course_replays.score < excluded.score;
+  return true;
+exception when check_violation then
+  return false;
+end $$;
+revoke all on function public.save_course_replay(text, integer, text, text, text, bigint, double precision, double precision, double precision, jsonb) from public, anon;
+grant execute on function public.save_course_replay(text, integer, text, text, text, bigint, double precision, double precision, double precision, jsonb) to authenticated;

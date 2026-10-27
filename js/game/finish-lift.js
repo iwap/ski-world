@@ -196,7 +196,7 @@ function finishRun() {
   Sound.combo(5);
   // Resultatet visas i liftrutan
   const rank = rankText();
-  $('lift-result').textContent = `${t('lift.result', { dist: fmt(res.dist), pts: fmt(res.total) })}${res.record ? ` · ${t('go.record')}` : ''}${rank ? ` · ${rank}` : ''}`;
+  $('lift-result').textContent = `${t('lift.result', { dist: fmt(res.dist), pts: fmt(res.total) })}${res.record ? ` · ${t('go.record')}` : ''}${rank ? ` · ${rank}` : ''}${ghostResultText ? ` · ${ghostResultText.text}` : ''}`;
 }
 
 // Efter mållinjen: hockeystopp, sedan till liften

@@ -1,5 +1,5 @@
 'use strict';
-// Kopplingen till servern: inloggning, global topplista, namn och dagens spöken.
+// Kopplingen till servern: inloggning, global topplista, namn och spöken.
 
 let lastRank = -1;
 let lastRankCourse = null;
@@ -105,6 +105,18 @@ const Online = (() => {
     const res = await fetch(`${api}/rpc/save_replay`, { method: 'POST', headers: await headers(), body: JSON.stringify({ p_day: day, p_score: score, p_name: name, p_data: data }) });
     return res.ok;
   }
-  return { on, client, auth, submit, flush, top, mine, rank, claimName, dailyTop, dailyReplayIds, dailyReplay, saveReplay };
+  // Spöken på vanliga banor: vilka som har ett, själva spöket och att spara sitt eget
+  const courseReplayIds = async (course) => (await get(`course_replays?select=player_id&course=eq.${course}`)).json();
+  const courseReplay = async (pid, course) => ((await (await get(`course_replays?select=name,score,difficulty,rider,seed,cruise,jump,time,data&player_id=eq.${encodeURIComponent(pid)}&course=eq.${course}`)).json())[0] || null);
+  async function saveCourseReplay(g) {
+    if (!(await auth())) return false;
+    const body = {
+      p_course: g.course, p_score: g.score, p_name: g.name, p_difficulty: g.difficulty, p_rider: g.rider,
+      p_seed: g.seed, p_cruise: g.cruise, p_jump: g.jump, p_time: g.time, p_data: g.data,
+    };
+    const res = await fetch(`${api}/rpc/save_course_replay`, { method: 'POST', headers: await headers(), body: JSON.stringify(body) });
+    return res.ok;
+  }
+  return { on, client, auth, submit, flush, top, mine, rank, claimName, dailyTop, dailyReplayIds, dailyReplay, saveReplay, courseReplayIds, courseReplay, saveCourseReplay };
 })();
 Online.flush();

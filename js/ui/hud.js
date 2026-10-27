@@ -24,6 +24,10 @@ function updateHud() {
   setText('hud-dir', t(isSwitch() ? 'dir.switch' : 'dir.forward'));
   $('hud-gates-wrap').classList.toggle('hidden', !course.slalom);
   if (course.slalom) setText('hud-gates', `${run.gates} ✓ · ${run.missed} ✗`);
+  // Spökjakt: hur långt före eller efter spöket man är
+  const gap = ghostGap();
+  $('hud-ghost-wrap').classList.toggle('hidden', gap === null);
+  if (gap !== null) setText('hud-ghost', `${Math.round(gap) > 0 ? '+' : Math.round(gap) < 0 ? '−' : ''}${fmt(Math.abs(Math.round(gap)))} m`);
   const playing = state === 'playing';
   if (!playing) $('chain').classList.add('hidden');
   $('air-hint').classList.toggle('hidden', !(p.air && !p.smallAir && playing && !tutorial));

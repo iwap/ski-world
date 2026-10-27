@@ -47,9 +47,9 @@ function loadSave() {
 }
 
 function persist() {
-  // Under dagens utmaning och online-sessioner är bana/svårighetsgrad tillfälliga – spara mina egna
+  // Under dagens utmaning, online-sessioner och spökjakter är bana/svårighetsgrad tillfälliga – spara mina egna
   let tmp = null;
-  try { tmp = daily || race; } catch { /* anropas även innan de är deklarerade (vid start) */ }
+  try { tmp = daily || race || runSeed; } catch { /* anropas även innan de är deklarerade (vid start) */ }
   const data = tmp && tmp.prev ? { ...save, course: tmp.prev.course, difficulty: tmp.prev.difficulty } : save;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* privat läge */ }
 }

@@ -208,7 +208,12 @@ function showMenu() {
     endDaily();
     resetWorld();
   }
+  if (runSeed) {
+    endRunSeed();
+    resetWorld();
+  }
   dailyAgain = false;
+  ghostAgain = null;
   partyTrack();
   $('menu-bank').textContent = fmt(save.bank);
   updateBadgeDot();
@@ -232,6 +237,9 @@ function showMenu() {
   play.classList.toggle('unlock', locked);
   play.classList.toggle('cant', locked && save.bank < price);
   play.textContent = locked ? `🔒 ${t('course.unlock')} · 🪙 ${fmt(price)}` : t('btn.play');
+  const ghost = myGhosts[save.course];
+  $('btn-ghost-me').classList.toggle('hidden', locked || !ghost);
+  if (ghost) setText('ghost-me-score', fmt(ghost.score));
   // Kort sammanfattning av inställningarna så att huvudmenyn kan vara ren
   $('menu-summary').textContent = [
     `${currentCharacter().icon} ${t(`char.${save.character}`)}`,

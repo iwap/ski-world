@@ -1,11 +1,11 @@
 'use strict';
 // Knapparnas kopplingar (laddas sist, när alla funktioner finns).
 
-$('btn-play').addEventListener('click', startRun);
+$('btn-play').addEventListener('click', () => startRun());
 $('btn-shop').addEventListener('click', showShop);
 $('btn-shop-back').addEventListener('click', showMenu);
-$('btn-shop-play').addEventListener('click', startRun);
-$('btn-again').addEventListener('click', () => (dailyAgain ? startDaily() : startRun()));
+$('btn-shop-play').addEventListener('click', () => startRun());
+$('btn-again').addEventListener('click', () => (dailyAgain ? startDaily() : startRun(ghostAgain)));
 $('btn-go-shop').addEventListener('click', showShop);
 $('btn-go-menu').addEventListener('click', showMenu);
 $('btn-resume').addEventListener('click', togglePause);
@@ -24,12 +24,16 @@ $('btn-reset1-yes').addEventListener('click', () => showOverlay('reset2'));
 $('btn-reset2-no').addEventListener('click', showSettings);
 $('btn-reset2-yes').addEventListener('click', () => {
   // Språket behålls, och tutorial-frågan visas bara första gången någonsin
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ lang: save.lang, tutorialSeen: true })); } catch { /* privat läge */ }
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ lang: save.lang, tutorialSeen: true }));
+    localStorage.removeItem(GHOST_KEY);
+  } catch { /* privat läge */ }
   location.reload();
 });
 $('course-prev').addEventListener('click', () => cycleCourse(-1));
 $('course-next').addEventListener('click', () => cycleCourse(1));
-$('course-card').addEventListener('click', startRun); // klick på kortet = åk den banan
+$('course-card').addEventListener('click', () => startRun()); // klick på kortet = åk den banan
+$('btn-ghost-me').addEventListener('click', () => chaseGhost({ ...myGhosts[save.course], name: t('ghost.mine') }));
 $('lb-select').addEventListener('change', (e) => showBoard(e.target.value));
 for (const mode of ['global', 'local']) $('lb-mode').append(segButton('', { mode }, () => setBoardMode(mode)));
 $('btn-settings').addEventListener('click', showSettings);

@@ -5,7 +5,8 @@ let boardCourse = 'classic';
 let boardMode = Online.on ? 'global' : 'local';
 let boardReq = 0;
 
-function boardRow(e, i, me) {
+// chase = funktion som startar en jakt på radens spöke (eller null om det inte finns något)
+function boardRow(e, i, me, chase = null) {
   const tr = document.createElement('tr');
   if (me) tr.className = 'me';
   else if (i < 3) tr.classList.add(`podium-${i + 1}`);
@@ -20,6 +21,15 @@ function boardRow(e, i, me) {
     const td = document.createElement('td');
     td.textContent = c;
     tr.append(td);
+  }
+  if (chase) {
+    const b = document.createElement('button');
+    b.className = 'lb-ghost';
+    b.textContent = '👻';
+    b.title = t('ghost.chase');
+    b.setAttribute('aria-label', t('ghost.chase'));
+    b.addEventListener('click', chase);
+    tr.children[1].append(' ', b);
   }
   return tr;
 }
@@ -45,10 +55,14 @@ function showBoard(courseId = save.course) {
     $('lb-empty').classList.add('hidden');
     $('lb-note').textContent = t('board.global');
     setStatus('board.loading');
-    Promise.all([Online.top(courseId), Online.mine(courseId)]).then(async ([list, mineRows]) => {
+    // Spökena kan bara jagas på banor man har låst upp
+    const ghostIds = courseUnlocked(courseId) ? Online.courseReplayIds(courseId).catch(() => []) : [];
+    Promise.all([Online.top(courseId), Online.mine(courseId), ghostIds]).then(async ([list, mineRows, ghosts]) => {
       if (req !== boardReq) return;
       $('lb-status').classList.add('hidden');
-      list.forEach((e, i) => body.append(boardRow(e, i, e.player_id === save.playerId)));
+      const withGhost = new Set(ghosts.map((g) => g.player_id));
+      const chase = (e) => (withGhost.has(e.player_id) ? () => chaseOnline(e.player_id, courseId, e.name) : null);
+      list.forEach((e, i) => body.append(boardRow(e, i, e.player_id === save.playerId, chase(e))));
       $('lb-empty').classList.toggle('hidden', list.length > 0);
       // Inte med bland de bästa: visa ens egen plats under listan
       const me = mineRows[0];
@@ -57,7 +71,7 @@ function showBoard(courseId = save.course) {
         if (req !== boardReq || !r) return;
         const meBody = $('lb-me-body');
         meBody.innerHTML = '';
-        meBody.append(boardRow(me, r - 1, true));
+        meBody.append(boardRow(me, r - 1, true, chase(me)));
         $('lb-me').classList.remove('hidden');
       }
     }).catch(() => {
@@ -67,7 +81,10 @@ function showBoard(courseId = save.course) {
     $('lb-note').textContent = t('board.local');
     // Äldre åk saknar bana och nivå: de räknas som Klassisk/Normal
     const list = save.leaderboard.filter((e) => (e.course || 'classic') === courseId);
-    list.forEach((e, i) => body.append(boardRow(e, i, courseId === lastRankCourse && i === lastRank)));
+    // Mitt spöke hör till bästa raden
+    const g = myGhosts[courseId];
+    const chase = (e, i) => (i === 0 && g && g.score === e.score && courseUnlocked(courseId) ? () => chaseGhost({ ...g, name: t('ghost.mine') }) : null);
+    list.forEach((e, i) => body.append(boardRow(e, i, courseId === lastRankCourse && i === lastRank, chase(e, i))));
     $('lb-empty').classList.toggle('hidden', list.length > 0);
   }
   if (!$('board').classList.contains('hidden')) return;

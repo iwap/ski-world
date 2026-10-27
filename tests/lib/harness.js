@@ -21,6 +21,7 @@ function play(n, hook, opts = {}) {
     else if (state === 'lift') updateLift(1 / 60);
     updateRace(1 / 60);
     updateDaily(1 / 60);
+    updateRunSeed(1 / 60);
     pressed.clear();
     if (opts.until && opts.until()) break;
   }

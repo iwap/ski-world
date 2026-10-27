@@ -26,6 +26,7 @@ function startTutorial() {
   if (race) leaveSession();
   if (party.hosting) cancelHosting();
   if (daily) endDaily();
+  endRunSeed();
   tutorial = { step: -1, t: 0, botKeys: new Set(), doneT: 0 };
   // Klassisk bana utan slumpade hinder – bara tutorialens hopp och rail
   course = COURSES.classic;
